@@ -25,7 +25,7 @@ Add a Browser Source pointing to the GitHub Pages URL, with width 1920 and heigh
 
 ## Sources
 - NOAA SPC forecast polygons: https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/SPC_wx_outlks/FeatureServer
-- Basemap: CARTO Dark Matter tiles, OpenStreetMap contributions
+- Background: CSS dark fill (no third-party map tiles or API key)
 - State outlines: PublicaMundi `MappingAPI` US states GeoJSON
 - Mapping engine: Leaflet
 

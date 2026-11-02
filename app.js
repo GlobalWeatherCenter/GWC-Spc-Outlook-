@@ -11,7 +11,8 @@ let day=1,type='cat',weatherLayer=null,labelsLayer=null,activeController=null,re
 const $=id=>document.getElementById(id);
 const map=L.map('map',{zoomControl:false,attributionControl:true,preferCanvas:true,minZoom:3,maxZoom:11,zoomSnap:.25,worldCopyJump:false}).setView([38.2,-97.5],4);
 L.control.zoom({position:'topright'}).addTo(map);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'}).addTo(map);
+// No third-party basemap tiles: the dark background is supplied by CSS,
+// with state boundaries drawn below. This avoids API keys/watermarks.
 // State outlines from an independent, simplified, public GeoJSON dataset.
 fetch('https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json').then(r=>{if(!r.ok)throw Error('State outlines unavailable');return r.json()}).then(j=>L.geoJSON(j,{style:{color:'#cbd4df',weight:1.05,opacity:.74,fillOpacity:0},interactive:false}).addTo(map)).catch(()=>{ $('message').title='State borders unavailable; forecast polygons remain official NOAA data.';});
 function nav(){ $('days').innerHTML='';for(let d=1;d<=8;d++){let b=document.createElement('button');b.textContent='DAY '+d;b.className=d===day?'active':'';b.setAttribute('aria-pressed',d===day);b.onclick=()=>{day=d;type=LAYERS[d][type]?'cat' in LAYERS[d]?'cat':'prob':d<=3?'cat':'prob';nav();load()};$('days').append(b)}$('hazards').innerHTML='';for(const [key,txt] of Object.entries(TYPES)){const b=document.createElement('button');b.textContent=txt;b.disabled=!LAYERS[day][key];b.className=key===type?'active':'';b.setAttribute('aria-pressed',key===type);b.onclick=()=>{type=key;nav();load()};$('hazards').append(b)}}
