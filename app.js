@@ -11,28 +11,51 @@ let day=1,type='cat',weatherLayer=null,labelsLayer=null,stateLabelsLayer=null,ac
 const US_BOUNDS=[[24.5,-125],[49.6,-66.5]];
 const STATES=[['WA',47.4,-120.7],['OR',43.9,-120.5],['CA',36.8,-119.4],['NV',39.2,-116.7],['ID',44.3,-114.4],['MT',47,-109.6],['WY',43,-107.6],['UT',39.3,-111.8],['AZ',34.2,-111.7],['NM',34.5,-106],['CO',39,-105.5],['ND',47.5,-100.5],['SD',44.4,-100.2],['NE',41.6,-99.7],['KS',38.5,-98.3],['OK',35.6,-97.3],['TX',31.1,-99.1],['MN',46,-94.5],['IA',42.2,-93.5],['MO',38.5,-92.4],['AR',34.8,-92.3],['LA',31,-92.3],['WI',44.6,-89.8],['IL',40,-89.1],['MI',44.3,-85.5],['IN',40,-86.2],['OH',40.3,-82.8],['KY',37.7,-85.3],['TN',35.8,-86],['MS',32.6,-89.8],['AL',32.8,-86.8],['GA',32.5,-83.4],['FL',28.1,-82],['SC',33.8,-80.9],['NC',35.6,-79.9],['VA',37.6,-78.9],['WV',38.7,-80.5],['PA',40.9,-77.8],['NY',42.7,-75.5],['VT',44,-72.7],['NH',43.8,-71.6],['ME',45.2,-69.1],['MA',42.3,-71.7],['CT',41.6,-72.7],['RI',41.5,-71.5],['NJ',40.1,-74.5],['DE',39,-75.4],['MD',39,-76.7]];
 function defaultView(){map.stop();map.fitBounds(US_BOUNDS,{animate:false,padding:[18,18]});}
-function paintStateLabels(){
- if(!stateLabelsLayer) stateLabelsLayer=L.layerGroup().addTo(map);
- stateLabelsLayer.clearLayers();
- const zoom=map.getZoom();
- for(const [abbr,lat,lon] of STATES){
-  if(!map.getBounds().pad(.04).contains([lat,lon]))continue;
-  if(zoom<4.5&&['RI','CT','NJ','DE','MD','MA','NH','VT','WV'].includes(abbr))continue;
-  L.marker([lat,lon],{pane:'stateLabelPane',interactive:false,keyboard:false,
-   icon:L.divIcon({className:'gwc-state-icon',html:`<span class="gwc-state-text">${abbr}</span>`,iconSize:[70,34],iconAnchor:[35,17]})
-  }).addTo(stateLabelsLayer);
+// Labels are rendered in a single screen-positioned SVG overlay, independent
+// of Leaflet marker panes. This prevents pane/layer ordering hiding labels.
+let labelSvg;
+function renderLabels(){
+ if(!labelSvg)return;
+ const w=map.getSize().x,h=map.getSize().y;
+ labelSvg.setAttribute('viewBox',`0 0 ${w} ${h}`);
+ labelSvg.replaceChildren();
+ const NS='http://www.w3.org/2000/svg';
+ const el=(tag,attrs,parent=labelSvg)=>{let n=document.createElementNS(NS,tag);for(let [k,v] of Object.entries(attrs))n.setAttribute(k,v);parent.appendChild(n);return n};
+ const shadow={'paint-order':'stroke','stroke':'#050912','stroke-width':'5','stroke-linejoin':'round'};
+ const occupied=[];
+ const overlap=(x,y,width,height)=>occupied.some(r=>Math.abs(r.x-x)<(r.w+width)/2+7&&Math.abs(r.y-y)<(r.h+height)/2+5);
+ for(let [abbr,lat,lon] of STATES){
+  const q=map.latLngToContainerPoint([lat,lon]);if(q.x<20||q.x>w-20||q.y<85||q.y>h-90)continue;
+  if(map.getZoom()<4.5&&['RI','CT','NJ','DE','MD','MA','NH','VT','WV'].includes(abbr))continue;
+  el('text',{x:q.x,y:q.y,'text-anchor':'middle','dominant-baseline':'middle',fill:'#dce5f0','font-size':map.getZoom()<4.5?'19':'24','font-family':'Arial, sans-serif','font-weight':'900',...shadow}).textContent=abbr;
+  occupied.push({x:q.x,y:q.y,w:38,h:27});
  }
+ const visible=CITIES.map(c=>({c,p:map.latLngToContainerPoint([c[1],c[2]])})).filter(o=>o.p.x>20&&o.p.x<w-30&&o.p.y>105&&o.p.y<h-105);
+ visible.sort((a,b)=>b.c[3]-a.c[3]);
+ const font=map.getZoom()<4.5?16:20;let count=0;
+ for(let {c,p} of visible){
+  const width=c[0].length*font*.56+14,x=p.x+width/2+9;
+  if(p.x+width>w-12||overlap(x,p.y,width,24))continue;
+  el('circle',{cx:p.x,cy:p.y,r:3.7,fill:'#fff',stroke:'#080e16','stroke-width':1.5});
+  el('text',{x:p.x+9,y:p.y+1,'dominant-baseline':'middle',fill:'#fff','font-size':font,'font-family':'Arial, sans-serif','font-weight':'800',...shadow}).textContent=c[0];
+  occupied.push({x,y:p.y,w:width,h:25});
+  if(++count>= (map.getZoom()<4.5?35:75))break;
+ }
+ const stats=$('label-count');if(stats)stats.textContent=`${STATES.length} states · ${count} cities available`;
 }
 const $=id=>document.getElementById(id);
 const map=L.map('map',{zoomControl:false,attributionControl:true,preferCanvas:true,minZoom:3,maxZoom:11,zoomSnap:.25,worldCopyJump:false}).fitBounds(US_BOUNDS);
 L.control.zoom({position:'topright'}).addTo(map);
-map.createPane('stateLabelPane');map.getPane('stateLabelPane').style.zIndex='660';map.getPane('stateLabelPane').style.pointerEvents='none';
-map.createPane('cityLabelPane');map.getPane('cityLabelPane').style.zIndex='670';map.getPane('cityLabelPane').style.pointerEvents='none';
-// No third-party basemap tiles: the dark background is supplied by CSS,
-// with state boundaries drawn below. This avoids API keys/watermarks.
-// State outlines from an independent, simplified, public GeoJSON dataset.
-fetch('https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json').then(r=>{if(!r.ok)throw Error('State outlines unavailable');return r.json()}).then(j=>L.geoJSON(j,{style:{color:'#cbd4df',weight:1.05,opacity:.74,fillOpacity:0},interactive:false}).addTo(map)).catch(()=>{ $('message').title='State borders unavailable; forecast polygons remain official NOAA data.';});
-map.on('moveend zoomend resize',()=>{paintStateLabels();selectCities(lastFeatures)});paintStateLabels();
+// SVG is above the polygons, but below the title and legend.
+labelSvg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+labelSvg.id='gwc-map-labels';labelSvg.setAttribute('aria-hidden','true');
+$('map').parentElement.appendChild(labelSvg);
+fetch('https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json')
+ .then(r=>{if(!r.ok)throw Error('State outline download failed');return r.json()})
+ .then(j=>L.geoJSON(j,{style:{color:'#d0d8e4',weight:1.1,opacity:.78,fillOpacity:0},interactive:false}).addTo(map))
+ .catch(()=>{});
+map.on('moveend zoomend resize',renderLabels);
+map.whenReady(()=>{map.invalidateSize();renderLabels()});
 function nav(){ $('days').innerHTML='';for(let d=1;d<=8;d++){let b=document.createElement('button');b.textContent='DAY '+d;b.className=d===day?'active':'';b.setAttribute('aria-pressed',d===day);b.onclick=()=>{day=d;type=LAYERS[d][type]?'cat' in LAYERS[d]?'cat':'prob':d<=3?'cat':'prob';nav();load()};$('days').append(b)}$('hazards').innerHTML='';for(const [key,txt] of Object.entries(TYPES)){const b=document.createElement('button');b.textContent=txt;b.disabled=!LAYERS[day][key];b.className=key===type?'active':'';b.setAttribute('aria-pressed',key===type);b.onclick=()=>{type=key;nav();load()};$('hazards').append(b)}}
 function palette(){return type==='cat'?CATEGORY:PROB}
 function color(dn){let row=palette().find(e=>e[2]===dn);return row?row[1]:'#8fbbce'}
@@ -43,54 +66,39 @@ function pointInRing(x,y,ring){let inside=false;for(let i=0,j=ring.length-1;i<ri
 function pointInPolygon(lon,lat,poly){if(!pointInRing(lon,lat,poly[0]))return false;for(let i=1;i<poly.length;i++)if(pointInRing(lon,lat,poly[i]))return false;return true}
 function contains(geom,lon,lat){if(geom.type==='Polygon')return pointInPolygon(lon,lat,geom.coordinates);if(geom.type==='MultiPolygon')return geom.coordinates.some(p=>pointInPolygon(lon,lat,p));return false}
 function featureRisk(f){let n=Number(f.properties?.dn);return Number.isFinite(n)?n:0}
-function selectCities(features){
- if(!labelsLayer)labelsLayer=L.layerGroup().addTo(map);
- labelsLayer.clearLayers();
- const bounds=map.getBounds();if(!bounds.isValid())return;
- const candidates=[];
- for(const c of CITIES){
-  if(!bounds.pad(-.02).contains([c[1],c[2]]))continue;
-  let highest=0;for(const f of features){if(contains(f.geometry,c[2],c[1]))highest=Math.max(highest,featureRisk(f))}
-  candidates.push({city:c,score:c[3]+highest*3});
- }
- candidates.sort((a,b)=>b.score-a.score);
- const occupied=[];const limit=map.getZoom()<4.5?24:map.getZoom()<5.5?36:65;
- const fontSize=map.getZoom()<4.5?16:19;
- for(const item of candidates){
-  const c=item.city,p=map.latLngToContainerPoint([c[1],c[2]]);
-  const width=c[0].length*(fontSize*.63)+20;
-  const tx=p.x+width/2+9;
-  if(occupied.some(q=>Math.abs(q.x-tx)<(q.width+width)/2+7&&Math.abs(q.y-p.y)<27))continue;
-  occupied.push({x:tx,y:p.y,width});
-  const marker=L.marker([c[1],c[2]],{pane:'cityLabelPane',interactive:false,keyboard:false,
-   icon:L.divIcon({className:'gwc-city-icon',html:`<span class="gwc-city-dot"></span><span class="gwc-city-text">${c[0]}</span>`,iconSize:[Math.ceil(width),31],iconAnchor:[6,15]})});
-  marker.addTo(labelsLayer);if(occupied.length>=limit)break;
- }
-}
+function selectCities(){renderLabels()}
 function zoomToRisk(features){
- // Never use off-shore/oceanic polygons as a map extent. If no meaningful
- // inland outlook is outlined, display the contiguous United States.
- const minRisk=type==='cat'?3:day>=4?15:5;
- const candidates=features.filter(f=>featureRisk(f)>=minRisk);
- if(!candidates.length){defaultView();return false}
- const ranked=candidates.map(f=>({f,rank:featureRisk(f),pts:corners(f.geometry).filter(p=>p[0]>=24&&p[0]<=50&&p[1]>=-126&&p[1]<=-66)})).filter(x=>x.pts.length>=3);
- if(!ranked.length){defaultView();return false}
- const maxRank=Math.max(...ranked.map(x=>x.rank));
- const primary=ranked.filter(x=>x.rank===maxRank);
- // Prefer the main risk area; an offshore/huge outer polygon must not control zoom.
- const choice=primary.sort((a,b)=>b.pts.length-a.pts.length)[0];
- const raw=L.latLngBounds(choice.pts);if(!raw.isValid()){defaultView();return false}
- const latSpan=raw.getNorth()-raw.getSouth(),lonSpan=raw.getEast()-raw.getWest();
- if(latSpan>22||lonSpan>36||latSpan<.01||lonSpan<.01){defaultView();return false}
- map.stop();map.fitBounds(raw.pad(.45),{paddingTopLeft:[55,115],paddingBottomRight:[40,90],maxZoom:7,animate:false});
+ const minimum=type==='cat'?3:day>=4?15:5;
+ const qualified=features.filter(f=>featureRisk(f)>=minimum);
+ if(!qualified.length){defaultView();return false}
+ const top=Math.max(...qualified.map(featureRisk));
+ const all=qualified.filter(f=>featureRisk(f)===top);
+ const groups=[];
+ for(const f of all){
+  const coords=corners(f.geometry).filter(p=>p[0]>24&&p[0]<50&&p[1]>-125&&p[1]<-66);
+  if(coords.length<3)continue;
+  const bb=L.latLngBounds(coords);const lat=bb.getNorth()-bb.getSouth(),lon=bb.getEast()-bb.getWest();
+  if(lat<.08||lon<.08||lat>22||lon>38)continue;
+  groups.push({bb,area:lat*lon});
+ }
+ if(!groups.length){defaultView();return false}
+ // Main connected risk area, not a nationwide thunderstorm outer contour.
+ groups.sort((a,b)=>b.area-a.area);
+ let bb=groups[0].bb;
+ // If other same-tier areas are close, include them, without zooming into oceans.
+ for(const g of groups.slice(1)){if(g.area>groups[0].area*.3){const combined=L.latLngBounds(bb).extend(g.bb);
+  if(combined.getEast()-combined.getWest()<30&&combined.getNorth()-combined.getSouth()<19)bb=combined;}}
+ map.stop();map.fitBounds(bb.pad(.40),{animate:false,maxZoom:6.7,paddingTopLeft:[100,130],paddingBottomRight:[70,100]});
+ // Prevent Leaflet fitBounds pushing beyond reasonable CONUS view.
+ map.panInsideBounds(US_BOUNDS,{animate:false});
  return true;
 }
 async function load(){let myId=++requestId;if(activeController)activeController.abort();activeController=new AbortController();const signal=activeController.signal;const lid=LAYERS[day][type];$('title').textContent=`DAY ${day} ${TYPES[type]} OUTLOOK`;$('eyebrow').textContent='GLOBAL WEATHER CENTER  /  STORM PREDICTION CENTER';$('issue').textContent='Loading official NOAA data…';showMessage('');makeLegend();if(weatherLayer){map.removeLayer(weatherLayer);weatherLayer=null}if(labelsLayer){map.removeLayer(labelsLayer);labelsLayer=null}const url=`${BASE}/${lid}/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geojson&_=${Date.now()}`;try{const res=await fetch(url,{signal,cache:'no-store'});if(!res.ok)throw Error('NOAA service returned HTTP '+res.status);const json=await res.json();if(myId!==requestId)return;if(json.error)throw Error(json.error.message||'NOAA service error');if(!Array.isArray(json.features))throw Error('Unexpected response from NOAA');const features=json.features.filter(f=>f&&f.geometry&&f.properties);const dates=features.map(f=>f.properties?.issue||f.properties?.valid||f.properties?.idp_filedate).filter(Boolean);let t=dates[0];const formatDate=v=>{if(v==null)return'';if(typeof v==='number'){let d=new Date(v);return Number.isNaN(d.getTime())?'':d.toLocaleString('en-US',{timeZone:'UTC',month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})+' UTC'}let ms=Date.parse(v);return Number.isNaN(ms)?String(v):new Date(ms).toLocaleString('en-US',{timeZone:'UTC',month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})+' UTC'};
 $('issue').textContent='NOAA / SPC'+(t?'  •  '+formatDate(t):'  •  Current published outlook')+'  •  Retrieved '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+' local';
-if(features.length===0){lastFeatures=[];defaultView();paintStateLabels();selectCities([]);return}
+if(features.length===0){lastFeatures=[];defaultView();renderLabels();return}
 const sorted=[...features].sort((a,b)=>featureRisk(a)-featureRisk(b));weatherLayer=L.geoJSON({type:'FeatureCollection',features:sorted},{style:f=>({color:color(featureRisk(f)),weight:1.7,opacity:1,fillColor:color(featureRisk(f)),fillOpacity:.78}),interactive:false}).addTo(map);
 // Zoom only to a meaningful, land-based threat; otherwise default to the US.
-const hasRisk=zoomToRisk(features);
-lastFeatures=features;paintStateLabels();selectCities(features);
-}catch(err){if(signal.aborted||myId!==requestId)return;$('issue').textContent='Unable to load live NOAA data';lastFeatures=[];defaultView();paintStateLabels();selectCities([]);showMessage('Official SPC map data could not be loaded. Check your connection or try Refresh. No forecast shapes are displayed rather than showing made-up risks. '+err.message)}}
+zoomToRisk(features);
+lastFeatures=features;renderLabels();
+}catch(err){if(signal.aborted||myId!==requestId)return;$('issue').textContent='Unable to load live NOAA data';lastFeatures=[];defaultView();renderLabels();showMessage('Official SPC map data could not be loaded. Check your connection or try Refresh. No forecast shapes are displayed rather than showing made-up risks. '+err.message)}}
 $('refresh').onclick=load;nav();load();setInterval(()=>{if(document.visibilityState==='visible')load()},10*60*1000);

@@ -14,3 +14,6 @@
 .gwc-city-dot{display:inline-block;flex:none;width:8px;height:8px;background:#fff;border:1px solid #000;border-radius:50%;box-shadow:0 0 4px #000}
 .gwc-city-text{font:800 19px/1.15 'Barlow Condensed',Arial,sans-serif;color:#fff;white-space:nowrap;text-shadow:0 2px 3px #000,2px 2px 3px #000,-2px -2px 3px #000,0 0 9px #000}
 @media(max-width:700px){.gwc-state-text{font-size:21px}.gwc-city-text{font-size:18px}}
+
+/* Independent SVG label layer fixes invisible city/state text */
+#gwc-map-labels{position:absolute;inset:0;width:100%;height:100%;z-index:520;overflow:hidden;pointer-events:none;}
