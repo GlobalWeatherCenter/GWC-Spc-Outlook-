@@ -8,6 +8,7 @@ const NWS='https://api.weather.gov';
 const NOW='https://mapservices.weather.noaa.gov';
 const RADAR_META='https://api.rainviewer.com/public/weather-maps.json';
 const NOAA_RADAR_WMS='https://nowcoast.noaa.gov/geoserver/observations/weather_radar/ows';
+const NOAA_RADAR_MAP='https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity/MapServer/export';
 map.createPane('gwcRadarPane');map.getPane('gwcRadarPane').style.zIndex='390';map.getPane('gwcRadarPane').style.pointerEvents='none';
 map.createPane('gwcAlertPane');map.getPane('gwcAlertPane').style.zIndex='535';
 const MD=NOW+'/vector/rest/services/outlooks/spc_mesoscale_discussion/MapServer/0/query';
@@ -16,7 +17,20 @@ const sources={outlooks:'https://www.spc.noaa.gov/products/outlook/',radar:'http
 const modes=[['outlooks','OUTLOOKS'],['radar','RADAR'],['warnings','WARNINGS'],['watches','WATCHES'],['discussions','DISCUSSIONS'],['reports','STORM REPORTS'],['satellite','SATELLITE']];
 const heads={outlooks:'SPC OUTLOOKS',radar:'LIVE WEATHER RADAR',warnings:'ACTIVE SEVERE WARNINGS',watches:'SEVERE WEATHER WATCHES',discussions:'SPC MESOSCALE DISCUSSIONS',reports:'RECENT STORM REPORTS',satellite:'GOES-19 SATELLITE'};
 const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function status(msg,error=false){el('wxStatus').textContent=msg;el('wxStatus').classList.toggle('wx-error',error);}
+function status(msg,error=false){
+ const n=el('wxStatus');n.textContent=msg;n.classList.toggle('wx-error',error);
+ n.dataset.state=error?'error':'ready';
+}
+function feedFailure(label,reason,source){
+ status(`${label} could not be loaded: ${reason}. The official source is available below.`,true);
+ openCard(`${label} unavailable`,'Live feed could not be retrieved',
+ 'This is a loading problem, not confirmation that there are no warnings or storms. Check the official data source and retry.',source);
+}
+function emptyFeed(title,desc,source){
+ status(desc);
+ openCard(title,'Latest available official feed',desc,source);
+}
+
 function panel(html){const details=el('wxDetails');details.innerHTML=html;details.classList.add('open');details.scrollTop=0;}
 function closePanel(){el('wxDetails').classList.remove('open');}
 function openCard(title,sub,desc,href){const link=href&&/^https:\/\//i.test(href)?`<a class="wx-card-link" href="${safe(href)}" target="_blank" rel="noopener">Open official source ↗</a>`:'';panel(`<button class="wx-panel-close" aria-label="Close information">×</button><div class="wx-kicker">GLOBAL WEATHER CENTER</div><h2>${safe(title)}</h2><p class="wx-meta">${safe(sub||'')}</p><p>${safe(desc||'').replace(/\n/g,'<br>')}</p>${link}`);el('wxDetails').querySelector('.wx-panel-close').onclick=closePanel;}
@@ -71,9 +85,10 @@ function setupAlerts(watches){
   if(drawn.length){const layer=L.geoJSON({type:'FeatureCollection',features:drawn},{pane:'gwcAlertPane',style:f=>({color:alertColor(f.properties?.event),weight:3.8,fillColor:alertColor(f.properties?.event),fillOpacity:.25,opacity:1}),onEachFeature:(f,l)=>{l.on('click',e=>{if(e.originalEvent)L.DomEvent.stopPropagation(e.originalEvent);openAlert(f)});l.bindTooltip(f.properties?.event||'Weather alert',{sticky:true,direction:'top'});}});setLayerStyle(layer);}
   WX.modeData=feats;
   status(`${feats.length} active ${watches?'watches':'warnings'} • ${drawn.length} mapped polygons${failed?' • '+failed+' feeds unavailable':''}. Tap a polygon or VIEW ${watches?'WATCHES':'ALERTS'}.`,failed===events.length);
-  if(feats.length===0 && !failed)openCard('No active '+(watches?'watches':'severe warnings'),'Latest NWS feed','No matching active alert products were returned.',sources[WX.mode]);
+  if(feats.length===0 && failed===events.length){feedFailure('NWS '+(watches?'watches':'warnings'),'All NWS feeds rejected their requests',sources[WX.mode]);return;}
+  if(feats.length===0 && !failed)emptyFeed('No active '+(watches?'watches':'severe warnings'),'The NWS feed returned no matching active events right now.',sources[WX.mode]);
   else if(!drawn.length && feats.length)eventList('Active alerts (no drawable polygons)',feats.map(f=>({title:f.properties?.event||'Weather alert',sub:f.properties?.areaDesc||'',open:()=>openAlert(f)})));
- }).catch(e=>{if(req===WX.req)status('NWS alert service unavailable: '+e.message,true)});
+ }).catch(e=>{if(req===WX.req)feedFailure('NWS alerts',e.message,sources[WX.mode])});
 }
 function openDiscussion(f){const p=f.properties||{};const number=String(p.name||'').match(/\d{3,4}/)?.[0];const official=number?`https://www.spc.noaa.gov/products/md/md${number.padStart(4,'0')}.html`:sources.discussions;openCard('Mesoscale Discussion '+(p.name||''),'NOAA Storm Prediction Center • '+(p.idp_filedate?new Date(p.idp_filedate).toLocaleString():'Active map area'),'Official SPC discussion area. Open the linked discussion for the full meteorological reasoning, location, hazards and watch probabilities.',official);}
 function setupMD(){
@@ -85,8 +100,8 @@ function setupMD(){
   if(valid.length){const layer=L.geoJSON({type:'FeatureCollection',features:valid},{pane:'gwcAlertPane',style:{color:'#d79aff',weight:3.5,fillColor:'#b55eff',fillOpacity:.24},onEachFeature:(f,l)=>{l.on('click',e=>{if(e.originalEvent)L.DomEvent.stopPropagation(e.originalEvent);openDiscussion(f)});l.bindTooltip('SPC Discussion '+(f.properties?.name||''),{sticky:true});}});setLayerStyle(layer);}
   WX.modeData=valid;
   status(`${valid.length} discussion areas • NOAA SPC • Tap a polygon or VIEW DISCUSSIONS`);
-  if(!valid.length)openCard('No active discussion areas','SPC official feed','There are no currently mapped mesoscale discussions. This does not imply there is no severe weather.',sources.discussions);
- }).catch(e=>{if(req===WX.req)status('SPC discussion feed unavailable: '+e.message,true)});
+  if(!valid.length)emptyFeed('No active discussion areas','The SPC service returned no currently mapped mesoscale discussions.',sources.discussions);
+ }).catch(e=>{if(req===WX.req)feedFailure('SPC discussions',e.message,sources.discussions)});
 }
 function reportType(p){const t=String(p.descript||p.description||p.event||'');if(/tornado|waterspout|landspout/i.test(t))return 'tornado';if(/hail/i.test(t))return 'hail';if(/wind|downburst/i.test(t))return 'wind';return null;}
 const reportColors={tornado:'#ff405a',hail:'#7ce6ee',wind:'#ffa943'};
@@ -98,27 +113,54 @@ function setupReports(){
  addFilter('ALL','all');addFilter('TORNADO','tornado');addFilter('WIND','wind');addFilter('HAIL','hail');btn('↻ UPDATE',setupReports);
  status('Loading latest 24-hour NWS local storm reports…');removeLayer();let features=[];
  function paint(){removeLayer();const choice=features.filter(f=>reportType(f.properties||{})&&(filter==='all'||reportType(f.properties||{})===filter));
-  const cluster=L.layerGroup();choice.forEach(f=>{if(f.geometry?.type!=='Point')return;const [lon,lat]=f.geometry.coordinates||[];if(!Number.isFinite(lon)||!Number.isFinite(lat))return;const p=f.properties||{},kind=reportType(p),color=reportColors[kind];const mark=L.circleMarker([lat,lon],{radius:7,weight:2,color:'#101923',fillColor:color,fillOpacity:1});mark.on('click',()=>openCard(p.descript||kind.toUpperCase()+' REPORT',p.location||p.loc||p.state||'NWS local storm report',[p.remark||p.remarks||p.comments||'',p.time||p.datetime||''].filter(Boolean).join('\n'),sources.reports));mark.addTo(cluster)});setLayerStyle(cluster);status(`${choice.length} preliminary ${filter==='all'?'tornado, wind and hail':filter} reports in the latest 24 hours`);}
- geo(arc(REPORTS)).then(f=>{if(req!==WX.req)return;features=f;paint()}).catch(e=>{if(req===WX.req)status('Storm report feed unavailable: '+e.message,true)});
+  const cluster=L.layerGroup();choice.forEach(f=>{if(f.geometry?.type!=='Point')return;const [lon,lat]=f.geometry.coordinates||[];if(!Number.isFinite(lon)||!Number.isFinite(lat))return;const p=f.properties||{},kind=reportType(p),color=reportColors[kind];const mark=L.circleMarker([lat,lon],{radius:7,weight:2,color:'#101923',fillColor:color,fillOpacity:1});mark.on('click',()=>openCard(p.descript||kind.toUpperCase()+' REPORT',p.location||p.loc||p.state||'NWS local storm report',[p.remark||p.remarks||p.comments||'',p.time||p.datetime||''].filter(Boolean).join('\n'),sources.reports));mark.addTo(cluster)});setLayerStyle(cluster);status(`${choice.length} preliminary ${filter==='all'?'tornado, wind and hail':filter} reports in the latest 24 hours`);if(!choice.length)emptyFeed('No matching reports',`No ${filter==='all'?'tornado, wind or hail':filter} reports were returned by the latest official feed.`,sources.reports);}
+ geo(arc(REPORTS)).then(f=>{if(req!==WX.req)return;features=f;paint()}).catch(e=>{if(req===WX.req)feedFailure('Storm reports',e.message,sources.reports)});
 }
 // NOAA nowCOAST live MRMS radar: the default, with no dependence on RainViewer.
 // RainViewer history is an optional animation; on failure, return to NOAA live.
 let noaaRadarLoaded=false;
-function radarCredit(){
- const n=el('wxRadarCredit');if(n)n.hidden=WX.mode!=='radar';
+function radarCredit(){const n=el('wxRadarCredit');if(n)n.hidden=WX.mode!=='radar';}
+// Direct official ArcGIS MapServer export tiles, avoiding unsupported browser CORS
+// fetches. Each 256px tile is georeferenced and follows the V12 map camera.
+const RadarExportLayer=L.TileLayer.extend({
+ getTileUrl(coords){
+  const nw=this._map.unproject(L.point(coords.x*256,coords.y*256),coords.z);
+  const se=this._map.unproject(L.point((coords.x+1)*256,(coords.y+1)*256),coords.z);
+  const p1=L.CRS.EPSG3857.project(L.latLng(se.lat,nw.lng));
+  const p2=L.CRS.EPSG3857.project(L.latLng(nw.lat,se.lng));
+  const params=new URLSearchParams({
+   bbox:`${p1.x},${p1.y},${p2.x},${p2.y}`,bboxSR:'3857',imageSR:'3857',
+   size:'256,256',format:'png32',transparent:'true',layers:'show:3',f:'image'
+  });
+  return NOAA_RADAR_MAP+'?'+params.toString();
+ }
+});
+function showWmsFallback(){
+ if(WX.mode!=='radar'||WX.radarProvider!=='noaa')return;
+ if(WX.radarLayer)map.removeLayer(WX.radarLayer);
+ status('Switching to NOAA nowCOAST radar backup…');
+ const fallback=L.tileLayer.wms(NOAA_RADAR_WMS,{
+  layers:'conus_base_reflectivity_mosaic',format:'image/png',transparent:true,
+  version:'1.1.1',pane:'gwcRadarPane',opacity:.88,tileSize:256,
+  updateWhenIdle:true,updateWhenZooming:false,keepBuffer:0,
+  attribution:'NOAA nowCOAST MRMS'
+ });
+ let loaded=false,errors=0;
+ fallback.on('tileload',()=>{if(WX.mode==='radar'&&!loaded){loaded=true;status('NOAA backup radar loaded. Returns display only where reflectivity is detected.');}});
+ fallback.on('tileerror',()=>{if(!loaded&&++errors>=3&&WX.mode==='radar')feedFailure('NOAA radar','Both official radar map services failed to return imagery',sources.radar);});
+ WX.radarLayer=fallback;fallback.addTo(map);
 }
 function loadNoaaRadar(){
  stopRadar();WX.radarActive=true;WX.radarProvider='noaa';noaaRadarLoaded=false;
- status('Loading LIVE NOAA MRMS radar…');
- const layer=L.tileLayer.wms(NOAA_RADAR_WMS,{
-   layers:'conus_base_reflectivity_mosaic',format:'image/png',transparent:true,
-   version:'1.1.1',pane:'gwcRadarPane',opacity:.88,tileSize:256,
-   updateWhenIdle:true,updateWhenZooming:false,keepBuffer:0,
-   attribution:'Radar: NOAA nowCOAST / NWS MRMS'
- });
+ status('Loading NOAA MRMS radar tiles… Returns appear only where precipitation is detected.');
+ const layer=new RadarExportLayer('',{pane:'gwcRadarPane',opacity:.88,tileSize:256,
+  minZoom:3,maxZoom:11,updateWhenIdle:true,updateWhenZooming:false,keepBuffer:1,
+  attribution:'NOAA / NWS MRMS base reflectivity'});
  let errors=0;
- layer.on('tileload',()=>{if(WX.mode==='radar'&&WX.radarProvider==='noaa'&&!noaaRadarLoaded){noaaRadarLoaded=true;status('LIVE NOAA MRMS radar • latest available reflectivity • automatic refresh');}});
- layer.on('tileerror',()=>{if(WX.radarProvider==='noaa'&&++errors===3)status('NOAA radar tiles are not responding. Try the radar source link or Animated History.',true)});
+ layer.on('tileload',()=>{if(WX.mode==='radar'&&WX.radarProvider==='noaa'&&!noaaRadarLoaded){
+  noaaRadarLoaded=true;status('LIVE NOAA MRMS radar • updates approx. every 5 minutes • clear areas are normal');
+ }});
+ layer.on('tileerror',()=>{if(WX.mode==='radar'&&WX.radarProvider==='noaa'&&!noaaRadarLoaded&&++errors>=3)showWmsFallback()});
  WX.radarLayer=layer;layer.addTo(map);radarCredit();
 }
 function loadRadarFrame(){

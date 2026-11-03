@@ -1,17 +1,17 @@
-# Global Weather Center — Weather Hub V16
+# Global Weather Center V17 — live feed reliability
 
-A static GitHub Pages severe-weather website. Upload all five files (`index.html`, `app.js`, `weather.js`, `style.css`, `README.md`) to the **root** of your existing repository. Keep GitHub Pages configured to deploy from main / (root). Refresh the website after publishing.
+This five-file ZIP is a replacement for V16, with the working V12 custom pinch zoom kept unchanged.
 
-## V16 changes
+## Changes
+- Radar now defaults to NOAA's ArcGIS radar base reflectivity MapServer, using geographically registered raster tiles. When tiles fail it tries NOAA nowCOAST.
+- Radar status distinguishes empty/clear areas from failed services.
+- Warning, watch, discussion and local storm report panels show explicit empty-versus-error messages and links to official sources.
+- No fake storms, watches or warnings are ever drawn.
+- SPC outlook polygons retain 70% opacity, counties and city/state labels unchanged.
 
-- **Radar:** defaults to NOAA nowCOAST live MRMS base reflectivity (a real, current radar WMS service). A separate **Animated History** control uses RainViewer historical tiles when available; it falls back to NOAA live radar if that service fails. Radar visibility still depends on precipitation being present and source coverage.
-- **Warnings, watches, discussions:** brighter colour-coded navigation, larger clickable alert polygons, a details drawer and a **View Alerts / View Watches / View Discussions** list. The red **VIEW ALERTS** button in the site header switches directly to the Warnings section.
-- **Cities:** stable geographic city and state labels, redrawn only after map movement settles; screen-size recalculation after changing sections.
-- **Zoom performance:** county borders use a single shared TopoJSON line mesh drawn on canvas instead of thousands of SVG polygons. The V12 working custom two-finger pinch engine has not been modified.
-- Keeps the SPC days/risks, 70% opacity, city search and weather readings, GOES satellite, storm reports, and Stream mode.
+## Deploy
+Extract and upload all 5 files to the root of your GitHub Pages repository; replace their previous versions.
+Look for GWC LIVE FEEDS V17 in the footer.
 
-## Sources and limitations
-
-Official SPC outlooks and NWS alerts are live data. NOAA nowCOAST radar is live but *not a historical animation*. RainViewer historical animation is available only if its external service and tiles are accessible. RainViewer's free API has restrictions and is intended for personal/educational use. Attribution is on the radar page. No API keys are included.
-
-This package has passed JavaScript syntax and static-file checks. The external live feeds and iPad Safari touch performance have **not** been verified end-to-end, so check the published site and its status messages. If a live feed is unavailable, it will display a source error rather than fabricate weather information.
+## Constraints
+Source services are public external networks. Some may refuse requests temporarily, deliver no active products, or render no precipitation during dry periods. This package's syntax has been checked, but live network behavior on iPad Safari is not yet verified.
