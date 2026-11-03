@@ -51,7 +51,15 @@ function renderLabels(){
  }
 }
 const $=id=>document.getElementById(id);
-const map=L.map('map',{zoomControl:false,attributionControl:true,preferCanvas:true,minZoom:3,maxZoom:11,zoomSnap:.25,worldCopyJump:false,zoomAnimation:false,inertia:false}).fitBounds(US_BOUNDS);
+// No zoom snapping or elastic rebound: both caused visible shifts on iPad pinch release.
+// Pointer-centred touch zoom stays under the user's control after the first automatic focus.
+const map=L.map('map',{
+ zoomControl:false,attributionControl:true,preferCanvas:true,
+ minZoom:3,maxZoom:11,zoomSnap:0,zoomDelta:.5,
+ touchZoom:true,bounceAtZoomLimits:false,
+ worldCopyJump:false,zoomAnimation:true,markerZoomAnimation:true,
+ inertia:false,fadeAnimation:false,doubleClickZoom:false
+}).fitBounds(US_BOUNDS,{animate:false});
 L.control.zoom({position:'topright'}).addTo(map);
 map.createPane('gwcLabelPane');
 map.getPane('gwcLabelPane').style.zIndex='640';
@@ -59,8 +67,8 @@ map.getPane('gwcLabelPane').style.pointerEvents='none';
 // Avoid endlessly recreating markers during gestures. Leaflet natively keeps
 // markers at the same geographic location while the map moves or scales.
 map.on('moveend zoomend resize',renderLabels);
-window.addEventListener('resize',()=>{map.invalidateSize();renderLabels()});
-map.whenReady(()=>{map.invalidateSize();renderLabels()});
+window.addEventListener('resize',()=>{map.invalidateSize({pan:false,animate:false});renderLabels()});
+map.whenReady(()=>{map.invalidateSize({pan:false,animate:false});renderLabels()});
 fetch('https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json')
  .then(r=>{if(!r.ok)throw Error('State outline download failed');return r.json()})
  .then(j=>L.geoJSON(j,{style:{color:'#d0d8e4',weight:1.1,opacity:.78,fillOpacity:0},interactive:false}).addTo(map))
@@ -76,32 +84,51 @@ function pointInPolygon(lon,lat,poly){if(!pointInRing(lon,lat,poly[0]))return fa
 function contains(geom,lon,lat){if(geom.type==='Polygon')return pointInPolygon(lon,lat,geom.coordinates);if(geom.type==='MultiPolygon')return geom.coordinates.some(p=>pointInPolygon(lon,lat,p));return false}
 function featureRisk(f){let n=Number(f.properties?.dn);return Number.isFinite(n)?n:0}
 function selectCities(){renderLabels()}
+// Highest published risk drives the view: HIGH > MDT > ENH > SLGT > MRGL.
+// We intentionally exclude broad thunderstorm contours from the automatic focus.
 function zoomToRisk(features){
- const minimum=type==='cat'?3:day>=4?15:5;
- const qualified=features.filter(f=>featureRisk(f)>=minimum);
- if(!qualified.length){defaultView();return false}
- const top=Math.max(...qualified.map(featureRisk));
- const all=qualified.filter(f=>featureRisk(f)===top);
- const groups=[];
- for(const f of all){
-  const coords=corners(f.geometry).filter(p=>p[0]>24&&p[0]<50&&p[1]>-125&&p[1]<-66);
-  if(coords.length<3)continue;
-  const bb=L.latLngBounds(coords);const lat=bb.getNorth()-bb.getSouth(),lon=bb.getEast()-bb.getWest();
-  if(lat<.08||lon<.08||lat>22||lon>38)continue;
-  groups.push({bb,area:lat*lon});
+ const minimum=type==='cat'?3:day>=4?15:type==='tor'?2:5;
+ const applicable=features.filter(f=>featureRisk(f)>=minimum);
+ if(!applicable.length){defaultView();return false;}
+ const highest=Math.max(...applicable.map(featureRisk));
+ const tier=applicable.filter(f=>featureRisk(f)===highest);
+ // A single multipolygon can contain two distant storms. Evaluate every
+ // polygon component separately rather than fitting the whole nationwide extent.
+ const pieces=[];
+ for(const f of tier){
+  const geom=f.geometry;
+  if(!geom)continue;
+  const polys=geom.type==='Polygon'?[geom.coordinates]:geom.type==='MultiPolygon'?geom.coordinates:[];
+  for(const poly of polys){
+   if(!poly?.length)continue;
+   const exterior=poly[0];
+   const pts=exterior.filter(v=>Array.isArray(v)&&Number.isFinite(v[0])&&Number.isFinite(v[1])&&v[0]>=-125&&v[0]<=-66&&v[1]>=24&&v[1]<=50);
+   if(pts.length<3)continue;
+   const bb=L.latLngBounds(pts.map(pt=>[pt[1],pt[0]]));
+   const spanLat=bb.getNorth()-bb.getSouth(),spanLon=bb.getEast()-bb.getWest();
+   if(spanLat<.025||spanLon<.025||spanLat>26||spanLon>48)continue;
+   // Shoelace area (rough geographic adjustment) to favour the main contiguous zone.
+   let area=0;
+   for(let i=0,j=pts.length-1;i<pts.length;j=i++)area+=pts[j][0]*pts[i][1]-pts[i][0]*pts[j][1];
+   area=Math.abs(area)*.5*Math.cos(bb.getCenter().lat*Math.PI/180);
+   pieces.push({bb,area,center:bb.getCenter()});
+  }
  }
- if(!groups.length){defaultView();return false}
- // Main connected risk area, not a nationwide thunderstorm outer contour.
- groups.sort((a,b)=>b.area-a.area);
- let bb=groups[0].bb;
- // If other same-tier areas are close, include them, without zooming into oceans.
- for(const g of groups.slice(1)){if(g.area>groups[0].area*.3){const combined=L.latLngBounds(bb).extend(g.bb);
-  if(combined.getEast()-combined.getWest()<30&&combined.getNorth()-combined.getSouth()<19)bb=combined;}}
- map.stop();map.fitBounds(bb.pad(.40),{animate:false,maxZoom:6.7,paddingTopLeft:[100,130],paddingBottomRight:[70,100]});
- // Prevent Leaflet fitBounds pushing beyond reasonable CONUS view.
- // Do not panInsideBounds here: it triggers a second visible jump after fitting.
+ if(!pieces.length){defaultView();return false;}
+ pieces.sort((a,b)=>b.area-a.area);
+ const main=pieces[0];
+ // Centre on the largest polygon of the highest risk, not far-away smaller patches.
+ // Use the actual available map viewport so the map isn't accidentally fitted
+ // behind the title or legend; clamp the frame for a broadcast-friendly focus.
+ const bounds=main.bb.pad(.16);
+ const fittedZoom=map.getBoundsZoom(bounds,false,[110,190]);
+ const zoom=Math.max(4.15,Math.min(7.1,fittedZoom));
+ // SINGLE deliberate camera move. No subsequent panInsideBounds/fitBounds.
+ map.stop();
+ map.setView(main.center,zoom,{animate:false});
  return true;
 }
+
 async function load({autoFit=true}={}){let myId=++requestId;if(activeController)activeController.abort();activeController=new AbortController();const signal=activeController.signal;const lid=LAYERS[day][type];$('title').textContent=`DAY ${day} ${TYPES[type]} OUTLOOK`;$('eyebrow').textContent='GLOBAL WEATHER CENTER  /  STORM PREDICTION CENTER';$('issue').textContent='Loading official NOAA data…';showMessage('');makeLegend();if(weatherLayer){map.removeLayer(weatherLayer);weatherLayer=null}if(labelsLayer){map.removeLayer(labelsLayer);labelsLayer=null}const url=`${BASE}/${lid}/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=geojson&_=${Date.now()}`;try{const res=await fetch(url,{signal,cache:'no-store'});if(!res.ok)throw Error('NOAA service returned HTTP '+res.status);const json=await res.json();if(myId!==requestId)return;if(json.error)throw Error(json.error.message||'NOAA service error');if(!Array.isArray(json.features))throw Error('Unexpected response from NOAA');const features=json.features.filter(f=>f&&f.geometry&&f.properties);const dates=features.map(f=>f.properties?.issue||f.properties?.valid||f.properties?.idp_filedate).filter(Boolean);let t=dates[0];const formatDate=v=>{if(v==null)return'';if(typeof v==='number'){let d=new Date(v);return Number.isNaN(d.getTime())?'':d.toLocaleString('en-US',{timeZone:'UTC',month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})+' UTC'}let ms=Date.parse(v);return Number.isNaN(ms)?String(v):new Date(ms).toLocaleString('en-US',{timeZone:'UTC',month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})+' UTC'};
 $('issue').textContent='NOAA / SPC'+(t?'  •  '+formatDate(t):'  •  Current published outlook')+'  •  Retrieved '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+' local';
 if(features.length===0){lastFeatures=[];if(autoFit)defaultView();renderLabels();return}

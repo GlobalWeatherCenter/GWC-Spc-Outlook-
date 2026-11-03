@@ -26,3 +26,6 @@
 .gwc-geostate{display:flex!important;align-items:center;justify-content:center}
 .gwc-geo-state-name{color:#d8e5f2;font:900 24px/1 'Barlow Condensed',Arial,sans-serif;text-shadow:0 2px 3px #000,0 0 7px #000;letter-spacing:.7px}
 @media(max-width:600px){.gwc-geo-city-name{font-size:16px}.gwc-geo-state-name{font-size:21px}}
+
+/* V10: native Leaflet gestures; avoid Safari page zoom competing with map pinch. */
+#map{touch-action:none;-webkit-user-select:none;user-select:none;}
