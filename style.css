@@ -1,0 +1,112 @@
+:root{color-scheme:dark;--bg:#07111e;--line:#253447;--ink:#fff;--dim:#93a5ba;--red:#e51c35}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:var(--bg);color:var(--ink);font-family:Inter,Arial,sans-serif}.app{height:100dvh;min-height:540px;display:flex;flex-direction:column;overflow:hidden}.top{height:64px;flex:none;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:0 2.4%;background:#060d16;border-bottom:1px solid #182c40}.brand{display:flex;align-items:center;gap:12px}.brand-mark{font:900 26px 'Barlow Condensed',sans-serif;letter-spacing:-1px;color:#fff}.brand-mark span{color:#26abff}.brand-name{font:800 18px 'Barlow Condensed',sans-serif;letter-spacing:2.2px}.top-right{display:flex;align-items:center;gap:12px;font-size:10px;letter-spacing:1.2px;color:#a5bad2;font-weight:700}.live-dot{width:8px;height:8px;border-radius:50%;background:#47dca1;box-shadow:0 0 11px #47dca1}button{cursor:pointer}#refresh{border:1px solid #31445b;background:#122135;border-radius:5px;color:#fff;font-weight:800;font-size:11px;padding:9px 12px}.nav{flex:none;min-height:58px;background:#0a1422;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 2.4%;border-bottom:1px solid #1b354e}.days,.hazards{display:flex;flex-wrap:wrap;gap:5px}.nav button{font:700 15px 'Barlow Condensed',sans-serif;letter-spacing:.75px;background:transparent;border:1px solid transparent;color:#9eafc2;border-radius:4px;padding:9px 14px}.nav button:hover,.nav button:focus-visible{background:#192e47;color:white}.nav button.active{background:#e8f4ff;color:#081525}.nav button:disabled{opacity:.32;cursor:default}.stage{position:relative;flex:1;min-height:0;overflow:hidden;background:#111c2a}#map{position:absolute;inset:0;background:#111a27}.leaflet-container{background:#101c29;font-family:Inter,Arial,sans-serif}.leaflet-control-attribution{opacity:.7;font-size:9px!important}.leaflet-control-zoom{border:0!important;margin-right:20px!important;margin-top:22px!important}.leaflet-control-zoom a{background:#101b2c!important;color:#fff!important;border-color:#3d5367!important}.upper-fade,.lower-fade{position:absolute;left:0;right:0;pointer-events:none;z-index:400}.upper-fade{top:0;height:158px;background:linear-gradient(180deg,rgba(3,8,17,.91),rgba(3,8,17,.60) 50%,transparent)}.lower-fade{bottom:0;height:172px;background:linear-gradient(0deg,rgba(2,7,15,.98),rgba(2,7,15,.8) 36%,transparent)}.headline{position:absolute;z-index:600;left:3%;top:16px;pointer-events:none;text-shadow:0 3px 12px #000,0 2px 4px #000}.eyebrow{font:700 11px Inter,sans-serif;letter-spacing:3.4px;color:#72caff}.headline h1{font:900 clamp(33px,5vw,80px)/.99 'Barlow Condensed',Impact,sans-serif;font-style:italic;letter-spacing:.35px;margin:8px 0 7px;text-transform:uppercase}.issue{font-size:12px;color:#c1d1e1;font-weight:700;letter-spacing:.35px}.message{display:none;position:absolute;z-index:650;top:155px;left:3%;max-width:540px;color:#fff;background:rgba(10,22,35,.92);padding:12px 16px;border-left:3px solid #fdc542;font-size:13px;line-height:1.6}.message.show{display:block}.bottom{position:absolute;z-index:600;bottom:23px;left:3%;right:3%;display:flex;align-items:end;justify-content:space-between;gap:20px;pointer-events:none}.legend{display:flex;align-items:center;flex-wrap:wrap;column-gap:25px;row-gap:12px}.legend-item{display:flex;gap:8px;align-items:center;font:800 21px 'Barlow Condensed',sans-serif;text-shadow:0 2px 6px #000}.swatch{width:27px;height:19px;border-radius:3px;flex:none;box-shadow:0 2px 5px #0006}.credit{font:800 13px 'Barlow Condensed',sans-serif;letter-spacing:1.4px;white-space:nowrap;text-shadow:0 2px 6px #000}.credit .divider{color:#60bdfc;padding:0 7px}.foot-note{position:absolute;z-index:610;bottom:5px;left:3%;font-size:9px;color:#aabacc;text-shadow:0 1px 4px #000}.foot-note a{color:#c8e9ff;pointer-events:auto}.city-label{color:white!important;background:none;border:0;box-shadow:none;white-space:nowrap;font:700 13px Inter,sans-serif;letter-spacing:-.3px;text-shadow:-2px -2px 2px #000,2px 2px 2px #000,2px -2px 2px #000,-2px 2px 2px #000,0 0 7px #000}.city-dot{height:7px;width:7px;display:block;background:white;border-radius:50%;border:1px solid #121a23;box-shadow:0 0 3px #000}.leaflet-tooltip.city-label:before{display:none}.leaflet-pane.leaflet-tooltip-pane{z-index:470}@media(max-width:900px){.top{height:55px}.brand-name{font-size:15px}.top-right{font-size:9px}.nav{align-items:stretch;flex-direction:column;min-height:90px;gap:3px}.nav button{font-size:14px;padding:7px 10px}.headline h1{font-size:clamp(30px,6vw,56px)}.bottom{bottom:28px}.legend{column-gap:12px}.legend-item{font-size:16px}.swatch{width:19px;height:15px}.credit{display:none}}@media(max-width:560px){.top-right>span:not(.live-dot){display:none}.brand-name{font-size:12px;letter-spacing:1px}.headline{top:12px}.headline h1{font-size:clamp(30px,8vw,45px)}.issue{font-size:10px}.eyebrow{font-size:9px}.legend-item{font-size:14px}.legend{column-gap:10px;row-gap:6px}.swatch{width:16px;height:13px}.bottom{bottom:38px}.foot-note{max-width:75%;line-height:1.4}.upper-fade{height:150px}}
+
+/* Abbreviated states and cities: visible without basemap tiles or API keys. */
+.state-abbr{font:800 12px Inter,Arial,sans-serif;color:#b8c6d8;text-align:center;letter-spacing:.7px;text-shadow:0 1px 5px #000,1px 1px 3px #000;pointer-events:none;opacity:.93}
+.city-marker{display:flex;align-items:center;white-space:nowrap;pointer-events:none}
+.city-text{font:700 12px Inter,Arial,sans-serif;color:#fff;text-shadow:-2px -2px 3px #000,2px 2px 3px #000,0 0 7px #000;margin-left:5px;white-space:nowrap}
+@media(max-width:600px){.city-text{font-size:10px}.state-abbr{font-size:10px}}
+
+/* Clear, large, visible labels drawn above all SPC polygons. */
+.gwc-state-icon,.gwc-city-icon{background:transparent!important;border:0!important;overflow:visible!important;pointer-events:none!important}
+.gwc-state-icon{display:flex!important;align-items:center;justify-content:center}
+.gwc-state-text{font:900 25px/1 'Barlow Condensed',Arial,sans-serif;letter-spacing:1.2px;color:#edf2fb;opacity:.88;white-space:nowrap;text-shadow:0 2px 4px #000,0 0 8px #000,2px 2px 3px #000,-2px -2px 3px #000}
+.gwc-city-icon{display:flex!important;align-items:center!important;white-space:nowrap!important;gap:6px}
+.gwc-city-dot{display:inline-block;flex:none;width:8px;height:8px;background:#fff;border:1px solid #000;border-radius:50%;box-shadow:0 0 4px #000}
+.gwc-city-text{font:800 19px/1.15 'Barlow Condensed',Arial,sans-serif;color:#fff;white-space:nowrap;text-shadow:0 2px 3px #000,2px 2px 3px #000,-2px -2px 3px #000,0 0 9px #000}
+@media(max-width:700px){.gwc-state-text{font-size:21px}.gwc-city-text{font-size:18px}}
+
+/* Independent SVG label layer fixes invisible city/state text */
+#gwc-map-labels{position:absolute;inset:0;width:100%;height:100%;z-index:520;overflow:hidden;pointer-events:none;}
+
+/* V6: labels are georeferenced Leaflet markers, not screen-space SVG. */
+.gwc-geocity,.gwc-geostate{border:0!important;background:transparent!important;white-space:nowrap!important;pointer-events:none!important;overflow:visible!important}
+.gwc-geocity{display:flex!important;align-items:center;height:100%;gap:5px}
+.gwc-city-dot{width:7px;height:7px;flex:none;background:#fff;border-radius:50%;border:1px solid #000}
+.gwc-geo-city-name{color:white;font:800 18px/1.1 'Barlow Condensed',Arial,sans-serif;text-shadow:-2px -2px 2px #000,2px 2px 2px #000,-2px 2px 2px #000,2px -2px 2px #000,0 0 6px #000}
+.gwc-geostate{display:flex!important;align-items:center;justify-content:center}
+.gwc-geo-state-name{color:#d8e5f2;font:900 24px/1 'Barlow Condensed',Arial,sans-serif;text-shadow:0 2px 3px #000,0 0 7px #000;letter-spacing:.7px}
+@media(max-width:600px){.gwc-geo-city-name{font-size:16px}.gwc-geo-state-name{font-size:21px}}
+
+/* V10: native Leaflet gestures; avoid Safari page zoom competing with map pinch. */
+#map{touch-action:none;-webkit-user-select:none;user-select:none;}
+
+/* V11: intentional touch navigation; map itself handles pinch without browser page zoom. */
+#map {touch-action:none;overscroll-behavior:contain;}
+#focus {border:1px solid #36506a;background:#122135;border-radius:5px;color:#fff;font-weight:800;font-size:11px;padding:9px 12px;}
+#focus:hover {background:#213851;}
+@media(max-width:560px){#focus{font-size:10px;padding:7px 8px}}
+
+/* V12: prevent Safari page magnification; map pinch is rendered synchronously. */
+#map { touch-action:none; -webkit-touch-callout:none; }
+
+
+/* V13: subtle broadcast glow and extra landscape detail */
+.gwc-risk-polygon{filter:drop-shadow(0 0 2px rgba(255,255,255,.10)) drop-shadow(0 0 6px rgba(110,190,255,.08));}
+.leaflet-overlay-pane svg path{vector-effect:non-scaling-stroke;}
+.gwc-geo-city-name{letter-spacing:.1px;}
+.gwc-geo-state-name{color:#dbe7f5;text-shadow:0 0 7px rgba(155,210,255,.18),0 2px 3px #000,0 0 7px #000;}
+
+/* V14: full severe-weather dashboard, adapted to the existing full-screen map */
+.wx-sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.wx-hub-nav{height:auto;min-height:55px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:13px;padding:8px 2.4%;background:#07111e;border-bottom:1px solid #203349;position:relative;z-index:1200}
+.wx-modes{display:flex;gap:5px;flex-wrap:wrap}
+.wx-modes button{font:800 14px 'Barlow Condensed',Arial,sans-serif;letter-spacing:.65px;padding:10px 13px;border:1px solid transparent;border-radius:4px;background:transparent;color:#aabbd0;cursor:pointer;white-space:nowrap}
+.wx-modes button:hover{color:#fff;background:#16283c}.wx-modes button.active{background:#d9edff;color:#071320}
+.wx-search-holder{display:flex;gap:7px;align-items:center;position:relative}
+#wxSearch{border:1px solid #2b4863;background:#102236;color:#fff;padding:10px 11px;border-radius:4px;min-width:205px;width:15vw;max-width:255px;font:650 13px Inter,Arial,sans-serif;outline:none}
+#wxSearch:focus{border-color:#62baff}#wxSearch::placeholder{color:#94a6be}
+.wx-stream{border:1px solid #2b4863;background:#102236;color:#d6eafa;border-radius:4px;padding:10px 12px;font:800 13px 'Barlow Condensed',sans-serif;letter-spacing:.5px;cursor:pointer}
+.wx-suggestions{position:absolute;top:44px;left:0;background:#0b192b;border:1px solid #45617e;min-width:230px;max-height:270px;overflow:auto;box-shadow:0 14px 32px #000b;border-radius:5px;z-index:1800}
+.wx-suggestions[hidden]{display:none}.wx-suggestions button{display:block;width:100%;text-align:left;color:#f4f8ff;background:transparent;border:0;padding:10px 12px;font:600 14px Inter,Arial,sans-serif;cursor:pointer}.wx-suggestions button:hover{background:#223a54}
+body:not([data-mode='outlooks']) .nav{display:none}
+body:not([data-mode='outlooks']) .headline,body:not([data-mode='outlooks']) .bottom{display:none}
+.wx-module{position:absolute;top:18px;left:3%;z-index:630;max-width:min(710px,92%);text-shadow:0 2px 5px #000}
+.wx-module[hidden]{display:none}.wx-mode-heading{display:flex;align-items:center;gap:22px;margin-bottom:12px;flex-wrap:wrap}
+#wxModeTitle{font:900 clamp(28px,3.5vw,54px)/1 'Barlow Condensed',sans-serif;font-style:italic;color:white}
+#wxSource{font:750 11px Inter,sans-serif;letter-spacing:.7px;text-decoration:none;color:#77ceff}
+.wx-toolbar{display:flex;gap:6px;flex-wrap:wrap}.wx-tool{font:800 13px 'Barlow Condensed',Arial,sans-serif;letter-spacing:.65px;color:#eef8ff;background:#15273d;border:1px solid #49627b;border-radius:4px;padding:9px 13px;cursor:pointer}.wx-tool:hover,.wx-tool:focus-visible{background:#294d6a}
+.wx-status{font:600 11px Inter,Arial,sans-serif;color:#b6cadd;padding-top:9px;text-shadow:0 2px 5px #000}.wx-error{color:#ffbcad}
+.wx-details{position:absolute;right:20px;top:112px;z-index:710;width:min(395px,calc(100% - 40px));max-height:calc(100% - 190px);overflow:auto;display:none;background:rgba(8,18,30,.96);border:1px solid #2b4964;border-radius:9px;padding:22px 23px;box-shadow:0 12px 40px #000c;color:#eaf5ff;font:14px/1.6 Inter,Arial,sans-serif;word-wrap:break-word}
+.wx-details.open{display:block}.wx-details h2{font:900 29px/1.06 'Barlow Condensed',Arial,sans-serif;margin:9px 22px 10px 0}.wx-details p{margin:12px 0;white-space:normal}.wx-details .wx-kicker{font:750 10px Inter,sans-serif;letter-spacing:2px;color:#60bfff}.wx-details .wx-meta{font-size:12px;color:#aebed1}
+.wx-panel-close{position:absolute;right:12px;top:9px;font-size:25px;background:transparent;border:0;color:white;cursor:pointer}.wx-card-link{display:inline-block;margin-top:8px;color:#7bcaff;font-weight:700}
+.wx-satellite{position:absolute;inset:0;z-index:480;display:flex;align-items:center;justify-content:center;flex-direction:column;background:#08101e;overflow:hidden}.wx-satellite[hidden]{display:none}.wx-satellite img{width:100%;height:100%;object-fit:contain;min-height:0}.wx-satellite span{position:absolute;bottom:15px;left:20px;color:#fff;background:#07111ddd;padding:5px 10px;border-radius:4px;font:700 12px Inter,sans-serif}
+.wx-stream-exit{position:fixed;right:16px;top:16px;z-index:2500;background:#11243a;border:1px solid #5a7b98;border-radius:5px;color:white;font:800 14px Inter,Arial,sans-serif;padding:11px 17px;cursor:pointer}
+.wx-stream-exit[hidden]{display:none}
+body.gwc-broadcast .wx-hub-nav,body.gwc-broadcast .nav,body.gwc-broadcast .top,body.gwc-broadcast .foot-note,body.gwc-broadcast .wx-toolbar,body.gwc-broadcast .wx-mode-heading #wxSource{display:none!important}
+body.gwc-broadcast .wx-module{top:22px}body.gwc-broadcast .wx-details{top:100px}body.gwc-broadcast .stage{height:100vh}body.gwc-broadcast .app{height:100dvh}
+@media(max-width:1100px){.wx-hub-nav{flex-wrap:wrap}.wx-modes button{padding:8px 9px}.wx-search-holder{margin-left:auto}.wx-module{top:14px}}
+@media(max-width:650px){.wx-modes button{font-size:12px;padding:7px 8px}#wxSearch{min-width:135px;width:42vw}.wx-module{left:4%;top:10px}.wx-tool{padding:7px 9px}.wx-details{right:10px;top:145px;width:calc(100% - 20px)}.wx-hub-nav{padding:6px 10px}}
+
+/* V15 labels stay above radar, warnings and discussion polygons. */
+.leaflet-pane.gwc-label-pane,.leaflet-gwclabelpane-pane{z-index:690!important;pointer-events:none!important}
+.gwc-geo-city-name{font-size:20px;font-weight:900;color:#fff;text-shadow:-2px -2px 3px #000,2px -2px 3px #000,-2px 2px 3px #000,2px 2px 3px #000,0 0 8px #000}
+.gwc-city-dot{box-shadow:0 0 5px #000,0 0 3px #fff}
+.wx-event-row{display:block;width:100%;text-align:left;background:#142b43;border:1px solid #38546d;color:#e9f6ff;border-radius:5px;margin:7px 0;padding:10px;cursor:pointer}
+.wx-event-row:hover,.wx-event-row:focus-visible{background:#254862;border-color:#77c4ff}
+.wx-event-row b{font:800 16px 'Barlow Condensed',sans-serif;display:block}
+.wx-event-row small{color:#b9cbd9;font-size:11px;display:block;margin-top:4px}
+.wx-events{max-height:52vh;overflow-y:auto}
+
+/* V16: brighter alert navigation and tap-friendly details */
+#wxAlertsQuick{border:1px solid #fd6c77;border-radius:5px;background:linear-gradient(110deg,#9c182c,#d52b40);color:#fff;font:900 13px 'Barlow Condensed',sans-serif;letter-spacing:.75px;padding:10px 14px;box-shadow:0 0 16px rgba(255,69,94,.22);cursor:pointer;white-space:nowrap}
+#wxAlertsQuick:hover,#wxAlertsQuick:focus-visible{background:#f14055;box-shadow:0 0 24px rgba(255,69,94,.44)}
+.wx-modes button[data-mode='warnings']{color:#ffb0ba;border-color:rgba(255,88,108,.38);background:rgba(150,30,54,.16)}
+.wx-modes button[data-mode='warnings'].active{color:#fff;background:linear-gradient(125deg,#9e1e38,#e53a4e);border-color:#fd7683}
+.wx-modes button[data-mode='watches']{color:#ffe1a1;border-color:rgba(255,187,49,.3);background:rgba(144,88,23,.11)}
+.wx-modes button[data-mode='watches'].active{color:#181305;background:#ffc64e;border-color:#ffe18f}
+.wx-modes button[data-mode='discussions']{color:#e2bbff;border-color:rgba(194,116,255,.3);background:rgba(112,49,150,.12)}
+.wx-modes button[data-mode='discussions'].active{color:#fff;background:#8039bd;border-color:#b87df4}
+.wx-modes button[data-mode='radar'].active{color:#fff;background:#086dab;border-color:#46baff}
+.wx-tool.wx-accent-alerts{background:#b1253b;border-color:#ff7286;color:white;box-shadow:0 0 14px rgba(227,48,79,.23)}
+.wx-tool.wx-accent-discussions{background:#64319f;border-color:#b87df4;color:white}
+.wx-tool.wx-accent-radar{background:#086b8c;border-color:#65cbec;color:white}
+.wx-tool.wx-accent-blue{background:#1a3f77;border-color:#5faaff;color:white}
+.wx-details{border-color:#536f92;box-shadow:0 14px 48px #000e,0 0 20px rgba(74,153,237,.11);z-index:1600;pointer-events:auto!important}
+.wx-panel-close{padding:6px 12px;border-radius:5px;background:#243e5b;z-index:3}
+.wx-event-row{border-left:4px solid #ff556b;background:linear-gradient(90deg,rgba(147,35,55,.37),#142b43 50%);padding:13px 14px;min-height:55px}
+body[data-mode='watches'] .wx-event-row{border-left-color:#ffbe3e}
+body[data-mode='discussions'] .wx-event-row{border-left-color:#c07bfc}
+.wx-radar-credit{color:#b6d3e9;font:600 10px Inter,Arial,sans-serif;margin-top:9px;text-shadow:0 2px 4px #000}
+.wx-radar-credit a{color:#83ceff}
+.gwc-geo-city-name{font-weight:850;text-shadow:-2px -2px 3px #000,2px 2px 3px #000,0 0 8px #000}
+@media(max-width:800px){#wxAlertsQuick{font-size:11px;padding:8px 10px}.wx-details{top:100px;max-height:calc(100% - 125px)}}
