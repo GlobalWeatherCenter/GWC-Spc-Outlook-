@@ -38,3 +38,10 @@
 
 /* V12: prevent Safari page magnification; map pinch is rendered synchronously. */
 #map { touch-action:none; -webkit-touch-callout:none; }
+
+
+/* V13: subtle broadcast glow and extra landscape detail */
+.gwc-risk-polygon{filter:drop-shadow(0 0 2px rgba(255,255,255,.10)) drop-shadow(0 0 6px rgba(110,190,255,.08));}
+.leaflet-overlay-pane svg path{vector-effect:non-scaling-stroke;}
+.gwc-geo-city-name{letter-spacing:.1px;}
+.gwc-geo-state-name{color:#dbe7f5;text-shadow:0 0 7px rgba(155,210,255,.18),0 2px 3px #000,0 0 7px #000;}

@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#07111e"><title>SPC Outlooks | Global Weather Center</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzxZ5b+zHfYv8SI0mE=" crossorigin="">
-<link rel="stylesheet" href="style.css?v=20261103-v12"></head>
+<link rel="stylesheet" href="style.css?v=20261103-v13"></head>
 <body><main class="app">
 <header class="top"><div class="brand"><span class="brand-mark">G<span>W</span>C</span><span class="brand-name">GLOBAL WEATHER CENTER</span></div><div class="top-right"><span class="live-dot"></span><span>OFFICIAL NOAA / SPC OUTLOOKS</span><button id="focus" title="Recenter on the highest risk area">◎ FOCUS RISK</button><button id="refresh" title="Refresh latest NOAA data">↻ REFRESH</button></div></header>
 <nav class="nav" aria-label="Select outlook day"><div id="days" class="days"></div><div id="hazards" class="hazards"></div></nav>
@@ -10,6 +10,6 @@
 <div class="headline"><div id="eyebrow" class="eyebrow">STORM PREDICTION CENTER</div><h1 id="title">DAY 1 CATEGORICAL OUTLOOK</h1><div id="issue" class="issue">Loading latest NOAA forecast…</div></div>
 <div id="message" class="message" role="status" aria-live="polite"></div>
 <div class="bottom"><div id="legend" class="legend"></div><div class="credit"><span>GLOBAL WEATHER CENTER</span> <span class="divider">/</span> NOAA SPC</div></div>
-<div class="foot-note"><span style="font-weight:700;margin-right:14px">GWC PINCH ENGINE V12 · 03 NOV 2026</span> Official NOAA forecast polygons • Always consult <a href="https://www.spc.noaa.gov/" target="_blank" rel="noopener">spc.noaa.gov</a> for safety information</div>
+<div class="foot-note"><span style="font-weight:700;margin-right:14px">GWC LANDSCAPE DETAIL V13 · 03 NOV 2026</span> Official NOAA forecast polygons • Always consult <a href="https://www.spc.noaa.gov/" target="_blank" rel="noopener">spc.noaa.gov</a> for safety information</div>
 </section></main>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script><script src="app.js?v=20261103-pinch-v12"></script></body></html>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script><script src="https://unpkg.com/topojson-client@3"></script><script src="app.js?v=20261103-detail-v13"></script></body></html>
