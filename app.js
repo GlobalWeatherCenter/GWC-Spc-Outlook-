@@ -20,48 +20,56 @@ const STATES=[['WA',47.4,-120.7],['OR',43.9,-120.5],['CA',36.8,-119.4],['NV',39.
 function defaultView(){map.stop();map.fitBounds(US_BOUNDS,{animate:false,padding:[18,18]});}
 // Labels are geographic Leaflet markers: Leaflet moves them with the map,
 // including during pinch/scroll zoom, so they cannot drift on screen.
+// Keep the geographic markers stable. Do not destroy/recreate during every camera tick.
 let labelMarkers=[];
+let labelKey='';
+let labelRebuildTimer=0;
 function clearLabels(){for(const m of labelMarkers)map.removeLayer(m);labelMarkers=[];}
 function renderLabels(){
  if(pinchState || map._animatingZoom || map._panAnim?._inProgress)return;
+ clearTimeout(labelRebuildTimer);
+ labelRebuildTimer=setTimeout(rebuildLabels,90);
+}
+function rebuildLabels(){
+ if(pinchState)return;
+ const z=map.getZoom(), bounds=map.getBounds(),size=map.getSize();
+ if(!size.x||!size.y)return;
+ // On radar and warning screens the map may have resized after the navigation disappears.
+ // All positions are measured in *current* Leaflet geographic coordinates.
+ const minPriority=z<4.5?9:z<5.2?8:z<5.9?7:z<6.7?6:z<7.4?5:4;
+ const newKey=[z.toFixed(1),bounds.getWest().toFixed(2),bounds.getSouth().toFixed(2),bounds.getEast().toFixed(2),bounds.getNorth().toFixed(2),size.x,size.y].join('/');
+ if(newKey===labelKey && labelMarkers.length)return;
+ labelKey=newKey;
  clearLabels();
- const sz=map.getSize(),z=map.getZoom();
- if(!sz.x||!sz.y)return;
  const occupied=[];
- const collides=(x,y,w,h)=>occupied.some(r=>x<r.x+r.w+5&&x+w>r.x-5&&y<r.y+r.h+5&&y+h>r.y-5);
- const addOcc=(x,y,w,h)=>occupied.push({x,y,w,h});
- const minPriority=z<4.4?9:z<5.15?8:z<5.8?7:z<6.5?6:z<7.15?5:4;
- const cityFont=z<5?16:z<6?18:z<7?20:22;
- const candidates=CITIES.filter(c=>c[3]>=minPriority).map(c=>({c,p:map.latLngToContainerPoint([c[1],c[2]])})).filter(({p})=>p.x>18&&p.x<sz.x-18&&p.y>95&&p.y<sz.y-85);
- candidates.sort((a,b)=>b.c[3]-a.c[3]||a.c[0].localeCompare(b.c[0]));
- for(const {c,p} of candidates){
-  const width=Math.ceil(c[0].length*cityFont*.59)+19,height=cityFont+12;
-  let x=p.x+8;if(x+width>sz.x-8)x=p.x-width-8;
-  const y=p.y-height/2;
-  if(x<4||collides(x,y,width,height))continue;
-  const icon=L.divIcon({className:'gwc-geocity',html:`<span class="gwc-city-dot"></span><span class="gwc-geo-city-name">${c[0]}</span>`,iconSize:[width,height],iconAnchor:[p.x-x,height/2]});
-  labelMarkers.push(L.marker([c[1],c[2]],{icon,interactive:false,keyboard:false,pane:'gwcLabelPane'}).addTo(map));
-  addOcc(x,y,width,height);
+ const overlaps=(x,y,w,h)=>occupied.some(o=>x<o[0]+o[2]+7&&x+w>o[0]-7&&y<o[1]+o[3]+7&&y+h>o[1]-7);
+ const occupy=(x,y,w,h)=>occupied.push([x,y,w,h]);
+ const font=z<5?15:z<6?17:z<7?19:20;
+ const candidates=CITIES.filter(c=>c[3]>=minPriority&&bounds.contains([c[1],c[2]])).sort((x,y)=>y[3]-x[3]);
+ for(const c of candidates){
+  const pt=map.latLngToContainerPoint([c[1],c[2]]);
+  if(pt.x<15||pt.x>size.x-20||pt.y<135||pt.y>size.y-85)continue;
+  const w=Math.ceil(c[0].length*font*.57)+20,h=font+12,x=pt.x+9,y=pt.y-h/2;
+  if(x+w>size.x-8||overlaps(x,y,w,h))continue;
+  const ic=L.divIcon({className:'gwc-geocity',html:`<span class="gwc-city-dot"></span><span class="gwc-geo-city-name">${c[0]}</span>`,iconSize:[w,h],iconAnchor:[-9,h/2]});
+  labelMarkers.push(L.marker([c[1],c[2]],{icon:ic,interactive:false,keyboard:false,pane:'gwcLabelPane'}).addTo(map));
+  occupy(x,y,w,h);
  }
- const stateFont=z<5?21:24;
- for(const [abbr,lat,lon] of STATES){
-  const pt=map.latLngToContainerPoint([lat,lon]);
-  if(pt.x<25||pt.x>sz.x-25||pt.y<100||pt.y>sz.y-85)continue;
-  if(z<5&&['RI','CT','NJ','DE','MD','MA','NH','VT'].includes(abbr))continue;
-  const w=48,h=32,x=pt.x-w/2,y=pt.y-h/2;
-  if(collides(x,y,w,h))continue;
-  const icon=L.divIcon({className:'gwc-geostate',html:`<span class="gwc-geo-state-name">${abbr}</span>`,iconSize:[w,h],iconAnchor:[w/2,h/2]});
-  labelMarkers.push(L.marker([lat,lon],{icon,interactive:false,keyboard:false,pane:'gwcLabelPane'}).addTo(map));
-  addOcc(x,y,w,h);
+ for(const [name,lat,lon] of STATES){
+  if(!bounds.contains([lat,lon]))continue;
+  const pt=map.latLngToContainerPoint([lat,lon]),w=45,h=31,x=pt.x-w/2,y=pt.y-h/2;
+  if(pt.y<125||pt.y>size.y-85||x<0||x+w>size.x||overlaps(x,y,w,h))continue;
+  if(z<5&&['RI','CT','NJ','DE','MD','MA','NH','VT'].includes(name))continue;
+  const ic=L.divIcon({className:'gwc-geostate',html:`<span class="gwc-geo-state-name">${name}</span>`,iconSize:[w,h],iconAnchor:[w/2,h/2]});
+  labelMarkers.push(L.marker([lat,lon],{icon:ic,interactive:false,keyboard:false,pane:'gwcLabelPane'}).addTo(map));
+  occupy(x,y,w,h);
  }
 }
 function updateCountyVisibility(){
- const shouldShow=!!countyGeoJson && map.getZoom()>=6.15;
- const layers=[countyOutlineGlowLayer,countyOutlineLayer].filter(Boolean);
- for(const layer of layers){
-  const onMap=map.hasLayer(layer);
-  if(shouldShow && !onMap) layer.addTo(map);
-  if(!shouldShow && onMap) map.removeLayer(layer);
+ const show=!!countyGeoJson && map.getZoom()>=6.1;
+ if(countyOutlineLayer){
+  if(show&&!map.hasLayer(countyOutlineLayer))countyOutlineLayer.addTo(map);
+  if(!show&&map.hasLayer(countyOutlineLayer))map.removeLayer(countyOutlineLayer);
  }
 }
 const $=id=>document.getElementById(id);
@@ -171,14 +179,14 @@ function loadStateOutlines(){
 }
 function loadCountyOutlines(){
  fetch('https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json')
-  .then(r=>{if(!r.ok)throw Error('County outline download failed');return r.json()})
-  .then(j=>{
-   countyGeoJson=topojson.feature(j,j.objects.counties);
-   countyOutlineGlowLayer=L.geoJSON(countyGeoJson,{style:{color:'#98cfff',weight:1.8,opacity:.11,fillOpacity:0},interactive:false});
-   countyOutlineLayer=L.geoJSON(countyGeoJson,{style:{color:'#b7c7d8',weight:.55,opacity:.34,fillOpacity:0},interactive:false});
-   updateCountyVisibility();
-  })
-  .catch(()=>{});
+  .then(r=>{if(!r.ok)throw Error('County download failed');return r.json()})
+  .then(data=>{
+    // A single shared mesh instead of thousands of SVG county polygons.
+    countyGeoJson=topojson.mesh(data,data.objects.counties,(left,right)=>left!==right);
+    const countyCanvas=L.canvas({padding:.08,tolerance:2});
+    countyOutlineLayer=L.geoJSON(countyGeoJson,{renderer:countyCanvas,style:{color:'#b6c8db',weight:.65,opacity:.42,fillOpacity:0},interactive:false});
+    updateCountyVisibility();
+  }).catch(()=>{});
 }
 loadStateOutlines();
 loadCountyOutlines();
