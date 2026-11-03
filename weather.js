@@ -3,10 +3,10 @@
 (() => {
 'use strict';
 const el=id=>document.getElementById(id);
-const WX={mode:'outlooks',req:0,layer:null,radarLayer:null,radarTimer:null,radarFrame:7,playing:false,radarBusy:false,radarActive:false,radarSeq:0,modeData:[],satType:'GEOCOLOR',refresh:null};
+const WX={mode:'outlooks',req:0,layer:null,radarLayer:null,radarTimer:null,radarFrame:0,radarFrames:[],radarHost:'',playing:false,radarBusy:false,radarActive:false,radarSeq:0,modeData:[],satType:'GEOCOLOR',refresh:null};
 const NWS='https://api.weather.gov';
 const NOW='https://mapservices.weather.noaa.gov';
-const RADAR=NOW+'/eventdriven/rest/services/radar/radar_base_reflectivity_time/ImageServer/exportImage';
+const RADAR_META='https://api.rainviewer.com/public/weather-maps.json';
 map.createPane('gwcRadarPane');map.getPane('gwcRadarPane').style.zIndex='380';map.getPane('gwcRadarPane').style.pointerEvents='none';
 const MD=NOW+'/vector/rest/services/outlooks/spc_mesoscale_discussion/MapServer/0/query';
 const REPORTS=NOW+'/vector/rest/services/obs/nws_local_storm_reports/MapServer/0/query';
@@ -19,7 +19,14 @@ function panel(html){el('wxDetails').innerHTML=html;el('wxDetails').classList.ad
 function closePanel(){el('wxDetails').classList.remove('open');}
 function openCard(title,sub,desc,href){const link=href&&/^https:\/\//i.test(href)?`<a class="wx-card-link" href="${safe(href)}" target="_blank" rel="noopener">Open official source ↗</a>`:'';panel(`<button class="wx-panel-close" aria-label="Close information">×</button><div class="wx-kicker">GLOBAL WEATHER CENTER</div><h2>${safe(title)}</h2><p class="wx-meta">${safe(sub||'')}</p><p>${safe(desc||'').replace(/\n/g,'<br>')}</p>${link}`);el('wxDetails').querySelector('.wx-panel-close').onclick=closePanel;}
 function removeLayer(){if(WX.layer){map.removeLayer(WX.layer);WX.layer=null;}}
-function stopRadar(){WX.radarSeq++;WX.playing=false;WX.radarActive=false;clearTimeout(WX.radarTimer);WX.radarTimer=null;WX.radarBusy=false;if(WX.radarLayer){map.removeLayer(WX.radarLayer);WX.radarLayer=null;}}
+let eventActions=[];
+function eventList(title, items){
+ eventActions=items;
+ const rows=items.slice(0,100).map((item,i)=>`<button class="wx-event-row" data-event-index="${i}"><b>${safe(item.title)}</b><small>${safe(item.sub||'Tap for full details')}</small></button>`).join('');
+ panel(`<button class="wx-panel-close" aria-label="Close information">×</button><div class="wx-kicker">SELECT AN AREA OR AN EVENT</div><h2>${safe(title)}</h2><div class="wx-events">${rows||'<p>No active items in this feed.</p>'}</div>`);
+ const box=el('wxDetails');box.querySelector('.wx-panel-close').onclick=closePanel;box.querySelectorAll('[data-event-index]').forEach(b=>b.onclick=()=>{const i=Number(b.dataset.eventIndex);if(eventActions[i])eventActions[i].open()});
+}
+function stopRadar(){WX.radarSeq++;WX.playing=false;WX.radarActive=false;clearTimeout(WX.radarTimer);WX.radarTimer=null;WX.radarBusy=false;if(WX.radarLayer){map.removeLayer(WX.radarLayer);WX.radarLayer=null;}WX.radarFrames=[];}
 function clearMode(){WX.req++;stopRadar();removeLayer();el('wxSatellite').hidden=true;el('wxToolbar').replaceChildren();closePanel();}
 function btn(label,onclick,cls=''){const b=document.createElement('button');b.type='button';b.className='wx-tool '+cls;b.textContent=label;b.onclick=onclick;el('wxToolbar').append(b);return b;}
 function setMode(mode){
@@ -29,6 +36,9 @@ function setMode(mode){
  el('wxModeTitle').textContent=heads[mode];el('wxSource').href=sources[mode];
  el('wxModule').hidden=mode==='outlooks';if(weatherLayer){if(mode==='outlooks'&&!map.hasLayer(weatherLayer))weatherLayer.addTo(map);else if(mode!=='outlooks'&&map.hasLayer(weatherLayer))map.removeLayer(weatherLayer);}
  el('wxSource').hidden=mode==='outlooks';
+ // Repaint labels on every mode change; labels stay above radar and vector outlines.
+ map.getPane('gwcLabelPane').style.zIndex='690';
+ requestAnimationFrame(()=>renderLabels());
  if(mode==='outlooks'){status('Live SPC outlooks • select Day and hazard');return;}
  if(mode==='radar')setupRadar();
  else if(mode==='warnings')setupAlerts(false);
@@ -51,11 +61,13 @@ function setupAlerts(watches){
   if(req!==WX.req)return;const feats=[];let failed=0;
   res.forEach((r,i)=>{if(r.status==='fulfilled'){r.value.forEach(f=>{f.properties={...f.properties,event:f.properties?.event||events[i]};feats.push(f);});}else failed++;});
   const drawn=feats.filter(usGeom);
-  if(drawn.length){const layer=L.geoJSON({type:'FeatureCollection',features:drawn},{style:f=>({color:alertColor(f.properties?.event),weight:2.7,fillColor:alertColor(f.properties?.event),fillOpacity:.16,opacity:1}),onEachFeature:(f,l)=>{const p=f.properties||{};l.on('click',()=>openCard(p.event||'NWS alert',p.areaDesc||'',p.description||p.headline||'',p['@id']||f.id||'https://www.weather.gov/'));}});setLayerStyle(layer);}
+  function openAlert(f){const p=f.properties||{};openCard(p.event||'NWS alert',(p.areaDesc||'')+' • Expires '+(p.ends||p.expires||'not specified'),[p.headline||'',p.description||'',p.instruction?'INSTRUCTIONS: '+p.instruction:''].filter(Boolean).join('\n\n'),p['@id']||p.id||sources[WX.mode]);}
+  if(drawn.length){const layer=L.geoJSON({type:'FeatureCollection',features:drawn},{style:f=>({color:alertColor(f.properties?.event),weight:2.7,fillColor:alertColor(f.properties?.event),fillOpacity:.18,opacity:1}),onEachFeature:(f,l)=>{l.on('click',()=>openAlert(f));l.bindTooltip(f.properties?.event||'Weather alert',{sticky:true});}});setLayerStyle(layer);}
   WX.modeData=feats;
-  status(`${feats.length} active ${watches?'watches':'warnings'} • ${drawn.length} mapped polygons${failed?' • '+failed+' feeds unavailable':''}`,failed===events.length);
+  status(`${feats.length} active ${watches?'watches':'warnings'} • ${drawn.length} mapped polygons${failed?' • '+failed+' feeds unavailable':''}. Tap a polygon or VIEW EVENTS.`,failed===events.length);
+  btn('☷ VIEW EVENTS',()=>eventList(watches?'Active watches':'Active severe warnings',feats.map(f=>({title:f.properties?.event||'Weather alert',sub:f.properties?.areaDesc||'Area not stated',open:()=>openAlert(f)}))));
   if(feats.length===0 && !failed)openCard('No active '+(watches?'watches':'severe warnings'),'Latest NWS feed','No matching active alert products were returned.',sources[WX.mode]);
-  else if(!drawn.length && feats.length)openCard('Active alerts available',feats.length+' alerts','The NWS feed returned alerts without drawable geometries. Use the official source link for county-level coverage.',sources[WX.mode]);
+  else if(!drawn.length && feats.length)eventList('Active alerts (no drawable polygons)',feats.map(f=>({title:f.properties?.event||'Weather alert',sub:f.properties?.areaDesc||'',open:()=>openAlert(f)})));
  }).catch(e=>{if(req===WX.req)status('NWS alert service unavailable: '+e.message,true)});
 }
 function setupMD(){
@@ -63,8 +75,10 @@ function setupMD(){
  geo(arc(MD)).then(features=>{
   if(req!==WX.req)return;
   const valid=features.filter(usGeom);
-  if(valid.length){const layer=L.geoJSON({type:'FeatureCollection',features:valid},{style:{color:'#c977ff',weight:2.6,fillColor:'#b55eff',fillOpacity:.19},onEachFeature:(f,l)=>{l.on('click',()=>{const p=f.properties||{};openCard('Mesoscale Discussion '+(p.name||''),'SPC discussion area','Select the official discussion for watch potential and short-term severe-weather reasoning.',sources.discussions);});}});setLayerStyle(layer);}
-  status(`${valid.length} discussion areas • NOAA SPC`);
+  function openDiscussion(f){const p=f.properties||{};const number=String(p.name||'').match(/\d{3,4}/)?.[0];const official=number?`https://www.spc.noaa.gov/products/md/md${number.padStart(4,'0')}.html`:sources.discussions;openCard('Mesoscale Discussion '+(p.name||''),'NOAA Storm Prediction Center • '+(p.idp_filedate?new Date(p.idp_filedate).toLocaleString():'Active map area'),'Official SPC discussion area. Open the linked discussion for the full meteorological reasoning, location, hazards and watch probabilities.',official);}
+  if(valid.length){const layer=L.geoJSON({type:'FeatureCollection',features:valid},{style:{color:'#c977ff',weight:2.6,fillColor:'#b55eff',fillOpacity:.19},onEachFeature:(f,l)=>{l.on('click',()=>openDiscussion(f));l.bindTooltip('SPC Discussion '+(f.properties?.name||''),{sticky:true});}});setLayerStyle(layer);}
+  btn('☷ VIEW DISCUSSIONS',()=>eventList('SPC mesoscale discussions',valid.map(f=>({title:'Discussion '+(f.properties?.name||''),sub:'SPC discussion area',open:()=>openDiscussion(f)}))));
+  status(`${valid.length} discussion areas • NOAA SPC • Tap a polygon or VIEW DISCUSSIONS`);
   if(!valid.length)openCard('No active discussion areas','SPC official feed','There are no currently mapped mesoscale discussions. This does not imply there is no severe weather.',sources.discussions);
  }).catch(e=>{if(req===WX.req)status('SPC discussion feed unavailable: '+e.message,true)});
 }
@@ -80,30 +94,42 @@ function setupReports(){
   const cluster=L.layerGroup();choice.forEach(f=>{if(f.geometry?.type!=='Point')return;const [lon,lat]=f.geometry.coordinates||[];if(!Number.isFinite(lon)||!Number.isFinite(lat))return;const p=f.properties||{},kind=reportType(p),color=reportColors[kind];const mark=L.circleMarker([lat,lon],{radius:7,weight:2,color:'#101923',fillColor:color,fillOpacity:1});mark.on('click',()=>openCard(p.descript||kind.toUpperCase()+' REPORT',p.location||p.loc||p.state||'NWS local storm report',[p.remark||p.remarks||p.comments||'',p.time||p.datetime||''].filter(Boolean).join('\n'),sources.reports));mark.addTo(cluster)});setLayerStyle(cluster);status(`${choice.length} preliminary ${filter==='all'?'tornado, wind and hail':filter} reports in the latest 24 hours`);}
  geo(arc(REPORTS)).then(f=>{if(req!==WX.req)return;features=f;paint()}).catch(e=>{if(req===WX.req)status('Storm report feed unavailable: '+e.message,true)});
 }
-function radarFrameTime(index){const interval=10*60*1000;const now=Date.now();const latest=Math.floor((now-15*60*1000)/interval)*interval;return latest-(7-index)*interval;}
-function projectedBbox(bounds){const a=map.options.crs.project(bounds.getSouthWest()),b=map.options.crs.project(bounds.getNorthEast());return [a.x,a.y,b.x,b.y].map(n=>Math.round(n)).join(',');}
+// RainViewer's documented no-key historical radar tile feed. Geographic tiles
+// share Leaflet's CRS, so they remain aligned through the working V12 pinch.
 function loadRadarFrame(){
- if(WX.mode!=='radar'||!WX.radarActive||pinchState)return;
- const bounds=map.getBounds();if(!bounds.isValid())return;
- const dim=map.getSize();const w=Math.min(1800,Math.max(640,Math.round(dim.x))),h=Math.min(1400,Math.max(400,Math.round(dim.y)));
- const at=radarFrameTime(WX.radarFrame);const params=new URLSearchParams({bbox:projectedBbox(bounds),bboxSR:'3857',imageSR:'3857',size:w+','+h,format:'png32',transparent:'true',f:'image',time:at+','+at,_:Math.floor(Date.now()/300000).toString()});
- const overlay=L.imageOverlay(RADAR+'?'+params,bounds,{opacity:.83,interactive:false,pane:'gwcRadarPane'});
- const previous=WX.radarLayer;const currentReq=WX.req;const frameSerial=++WX.radarSeq;
- overlay.on('load',()=>{if(currentReq!==WX.req||WX.mode!=='radar'||frameSerial!==WX.radarSeq){map.removeLayer(overlay);return;}if(previous&&map.hasLayer(previous))map.removeLayer(previous);status('MRMS radar • frame '+(WX.radarFrame+1)+'/8 • requested '+new Date(at).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',timeZone:'UTC'})+' UTC');});
- overlay.on('error',()=>{if(currentReq!==WX.req||frameSerial!==WX.radarSeq)return;status('Radar image unavailable for this frame. Source: NOAA MRMS.',true);if(map.hasLayer(overlay))map.removeLayer(overlay);if(previous)WX.radarLayer=previous;});
- WX.radarLayer=overlay;overlay.addTo(map);
+ if(WX.mode!=='radar'||!WX.radarActive||!WX.radarFrames.length)return;
+ const frame=WX.radarFrames[WX.radarFrame];if(!frame)return;
+ const seq=++WX.radarSeq;
+ const url=WX.radarHost+frame.path+'/256/{z}/{x}/{y}/2/1_1.png';
+ const layer=L.tileLayer(url,{pane:'gwcRadarPane',opacity:.83,maxZoom:11,maxNativeZoom:7,minZoom:3,tileSize:256,updateWhenIdle:true,keepBuffer:1,crossOrigin:true,attribution:'Radar © <a href="https://www.rainviewer.com/" target="_blank">RainViewer</a>'});
+ const prior=WX.radarLayer;
+ WX.radarLayer=layer;
+ // Tile layers use geographic tile coordinates, not exported image bounding boxes.
+ // Switch the active layer without allowing an old request to reinstate stale frames.
+ layer.on('load',()=>{if(seq!==WX.radarSeq||WX.mode!=='radar')return;if(prior&&map.hasLayer(prior))map.removeLayer(prior);status('Radar • '+new Date(frame.time*1000).toLocaleString('en-US',{timeZone:'UTC',hour:'2-digit',minute:'2-digit',hour12:false})+' UTC • '+(WX.radarFrame+1)+' / '+WX.radarFrames.length+' frames');});
+ layer.on('tileerror',()=>{if(seq===WX.radarSeq)status('Some radar tiles failed to load; try Refresh Radar.',true);});
+ layer.addTo(map);
+ // Remove old frames even if a tile network request stalls.
+ setTimeout(()=>{if(seq===WX.radarSeq&&prior&&map.hasLayer(prior))map.removeLayer(prior);},1600);
 }
-function setupRadar(){
- WX.radarActive=true;WX.radarFrame=7;WX.playing=false;const play=btn('▶ PLAY',()=>{WX.playing=!WX.playing;play.textContent=WX.playing?'Ⅱ PAUSE':'▶ PLAY';if(WX.playing)tickRadar();else clearTimeout(WX.radarTimer);});
- btn('◀ PREV',()=>{WX.playing=false;clearTimeout(WX.radarTimer);play.textContent='▶ PLAY';WX.radarFrame=(WX.radarFrame+7)%8;loadRadarFrame()});
- btn('NEXT ▶',()=>{WX.playing=false;clearTimeout(WX.radarTimer);play.textContent='▶ PLAY';WX.radarFrame=(WX.radarFrame+1)%8;loadRadarFrame()});
- btn('↻ LATEST',()=>{WX.radarFrame=7;loadRadarFrame()});
- status('Loading NOAA MRMS reflectivity • latest four-hour service');loadRadarFrame();
+async function setupRadar(){
+ el('wxToolbar').replaceChildren();
+ WX.radarActive=true;WX.playing=false;
+ const play=btn('▶ PLAY',()=>{WX.playing=!WX.playing;play.textContent=WX.playing?'Ⅱ PAUSE':'▶ PLAY';if(WX.playing)tickRadar();else clearTimeout(WX.radarTimer);});
+ btn('◀ PREV',()=>{WX.playing=false;clearTimeout(WX.radarTimer);play.textContent='▶ PLAY';WX.radarFrame=(WX.radarFrame+WX.radarFrames.length-1)%Math.max(1,WX.radarFrames.length);loadRadarFrame()});
+ btn('NEXT ▶',()=>{WX.playing=false;clearTimeout(WX.radarTimer);play.textContent='▶ PLAY';WX.radarFrame=(WX.radarFrame+1)%Math.max(1,WX.radarFrames.length);loadRadarFrame()});
+ btn('↻ REFRESH RADAR',()=>{stopRadar();setupRadar();});
+ status('Connecting to weather radar frames…');
+ const req=WX.req;
+ try{
+  const res=await fetch(RADAR_META,{cache:'no-store'});if(!res.ok)throw Error('Radar metadata HTTP '+res.status);
+  const data=await res.json();if(req!==WX.req||WX.mode!=='radar')return;
+  if(!data.host||!Array.isArray(data.radar?.past)||!data.radar.past.length)throw Error('Radar feed returned no available frames');
+  WX.radarHost=data.host;WX.radarFrames=data.radar.past.slice(-10);WX.radarFrame=WX.radarFrames.length-1;
+  loadRadarFrame();
+ }catch(e){if(req===WX.req&&WX.mode==='radar')status('Radar unavailable: '+e.message+' • Try refreshing.',true);}
 }
-function tickRadar(){clearTimeout(WX.radarTimer);if(!WX.playing||WX.mode!=='radar')return;WX.radarFrame=(WX.radarFrame+1)%8;loadRadarFrame();WX.radarTimer=setTimeout(tickRadar,1800);}
-let radarMoveTimer;
-map.on('moveend',()=>{if(WX.mode!=='radar'||!WX.radarActive||pinchState)return;clearTimeout(radarMoveTimer);radarMoveTimer=setTimeout(()=>{if(!pinchState)loadRadarFrame()},380)});
-mapElement.addEventListener('touchend',()=>{if(WX.mode!=='radar')return;clearTimeout(radarMoveTimer);radarMoveTimer=setTimeout(()=>{if(!pinchState)loadRadarFrame()},450)},{passive:true});
+function tickRadar(){clearTimeout(WX.radarTimer);if(!WX.playing||WX.mode!=='radar'||!WX.radarFrames.length)return;WX.radarFrame=(WX.radarFrame+1)%WX.radarFrames.length;loadRadarFrame();WX.radarTimer=setTimeout(tickRadar,1700);}
 function setupSatellite(){
  btn('GEOCOLOR',()=>setSatellite('GEOCOLOR'));
  btn('INFRARED',()=>setSatellite('13'));
