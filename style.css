@@ -29,3 +29,9 @@
 
 /* V10: native Leaflet gestures; avoid Safari page zoom competing with map pinch. */
 #map{touch-action:none;-webkit-user-select:none;user-select:none;}
+
+/* V11: intentional touch navigation; map itself handles pinch without browser page zoom. */
+#map {touch-action:none;overscroll-behavior:contain;}
+#focus {border:1px solid #36506a;background:#122135;border-radius:5px;color:#fff;font-weight:800;font-size:11px;padding:9px 12px;}
+#focus:hover {background:#213851;}
+@media(max-width:560px){#focus{font-size:10px;padding:7px 8px}}
