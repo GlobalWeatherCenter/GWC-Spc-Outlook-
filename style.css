@@ -35,3 +35,6 @@
 #focus {border:1px solid #36506a;background:#122135;border-radius:5px;color:#fff;font-weight:800;font-size:11px;padding:9px 12px;}
 #focus:hover {background:#213851;}
 @media(max-width:560px){#focus{font-size:10px;padding:7px 8px}}
+
+/* V12: prevent Safari page magnification; map pinch is rendered synchronously. */
+#map { touch-action:none; -webkit-touch-callout:none; }

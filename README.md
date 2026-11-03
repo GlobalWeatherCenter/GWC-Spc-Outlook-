@@ -1,14 +1,16 @@
-# Global Weather Center — V11 (gesture-safe SPC map)
+# Global Weather Center — V12
 
-This is a complete static GitHub Pages site. Upload `index.html`, `app.js`, `style.css` and `README.md` to the repository root.
+Full static site for GitHub Pages: index.html, app.js, style.css, README.md.
 
-## What changed in V11
-- NOAA requests cannot override a user's ongoing or recently completed pinch / drag / wheel gesture.
-- A request started before a user moved the map cannot unexpectedly recenter it when the data arrives.
-- Disabled Leaflet animated zoom and marker zoom transitions to avoid iPad visual overshoot.
-- Kept native two-finger pinch and pan, with a separate **FOCUS RISK** control to recenter deliberately.
-- Kept the V10 focus priority, labels, SPC overlays and 70% fill opacity.
-- Added a unique V11 version identifier and cache-busting URLs for GitHub Pages.
+## Gesture fix
+Native Leaflet `touchZoom` is disabled. Instead, a custom two-finger handler updates zoom and position together, anchored at the midpoint of the fingers, using Leaflet projection coordinates. The NOAA polygons and city/state markers use the same map projection while moving. No touch-end camera correction, and labels are de-cluttered only after pinch completes.
 
-## Testing
-The JavaScript parser check only confirms syntax. Verify pinch behaviour on the target iPad and published GitHub Pages site before relying on it. If it still jumps, record a short screen video: iPadOS Safari has several distinct touch event behaviours, which can be diagnosed from motion and timing.
+A *Focus Risk* button recovers the highest-risk region when desired. Forecast layers remain 70% opaque.
+
+## Deploy
+Upload the three web files at the repository root, then use GitHub Pages from main / (root). The included README is optional to run the page. Refresh browser after deployment.
+
+## Test
+On an iPad: select Day 1, pinch with two fingers and move them sideways during the pinch, release, and confirm no positional correction. Also test single-finger panning, Focus Risk, and changing days.
+
+Not yet verified on a physical iPad Safari device.

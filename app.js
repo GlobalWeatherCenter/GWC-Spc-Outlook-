@@ -13,6 +13,7 @@ let day=1,type='cat',weatherLayer=null,labelsLayer=null,stateLabelsLayer=null,ac
 // A user gesture always wins over a pending SPC network response.
 let gestureSerial=0, gestureActive=false, selecting=false, selectedFeaturesLoaded=false;
 let gestureIdleTimer=null;
+let pinchState=null;
 const US_BOUNDS=[[24.5,-125],[49.6,-66.5]];
 const STATES=[['WA',47.4,-120.7],['OR',43.9,-120.5],['CA',36.8,-119.4],['NV',39.2,-116.7],['ID',44.3,-114.4],['MT',47,-109.6],['WY',43,-107.6],['UT',39.3,-111.8],['AZ',34.2,-111.7],['NM',34.5,-106],['CO',39,-105.5],['ND',47.5,-100.5],['SD',44.4,-100.2],['NE',41.6,-99.7],['KS',38.5,-98.3],['OK',35.6,-97.3],['TX',31.1,-99.1],['MN',46,-94.5],['IA',42.2,-93.5],['MO',38.5,-92.4],['AR',34.8,-92.3],['LA',31,-92.3],['WI',44.6,-89.8],['IL',40,-89.1],['MI',44.3,-85.5],['IN',40,-86.2],['OH',40.3,-82.8],['KY',37.7,-85.3],['TN',35.8,-86],['MS',32.6,-89.8],['AL',32.8,-86.8],['GA',32.5,-83.4],['FL',28.1,-82],['SC',33.8,-80.9],['NC',35.6,-79.9],['VA',37.6,-78.9],['WV',38.7,-80.5],['PA',40.9,-77.8],['NY',42.7,-75.5],['VT',44,-72.7],['NH',43.8,-71.6],['ME',45.2,-69.1],['MA',42.3,-71.7],['CT',41.6,-72.7],['RI',41.5,-71.5],['NJ',40.1,-74.5],['DE',39,-75.4],['MD',39,-76.7]];
 function defaultView(){map.stop();map.fitBounds(US_BOUNDS,{animate:false,padding:[18,18]});}
@@ -21,7 +22,7 @@ function defaultView(){map.stop();map.fitBounds(US_BOUNDS,{animate:false,padding
 let labelMarkers=[];
 function clearLabels(){for(const m of labelMarkers)map.removeLayer(m);labelMarkers=[];}
 function renderLabels(){
- if(map._animatingZoom||map._panAnim?._inProgress)return;
+ if(pinchState || map._animatingZoom || map._panAnim?._inProgress)return;
  clearLabels();
  const sz=map.getSize(),z=map.getZoom();
  if(!sz.x||!sz.y)return;
@@ -59,7 +60,7 @@ const $=id=>document.getElementById(id);
 const map=L.map('map',{
  zoomControl:false,attributionControl:true,preferCanvas:false,
  minZoom:3,maxZoom:11,zoomSnap:0,zoomDelta:.5,
- touchZoom:true,bounceAtZoomLimits:false,
+ touchZoom:false,bounceAtZoomLimits:false,
  worldCopyJump:false,zoomAnimation:false,markerZoomAnimation:false,
  inertia:false,fadeAnimation:false,doubleClickZoom:false
 }).fitBounds(US_BOUNDS,{animate:false});
@@ -80,6 +81,61 @@ mapElement.addEventListener('pointerdown',markUserGesture,{passive:true,capture:
 mapElement.addEventListener('touchstart',markUserGesture,{passive:true,capture:true});
 mapElement.addEventListener('wheel',markUserGesture,{passive:true,capture:true});
 mapElement.addEventListener('keydown',markUserGesture,{capture:true});
+// V12: On iPad Safari Leaflet's native pinch temporarily CSS-transforms
+// the polygon and marker panes and reconciles them on touchend. That looked
+// like the map drifted off its geographic position then snapped back.
+// We disable that native pinch and update the map camera and all geographic
+// layers synchronously at the touch midpoint on every touchmove instead.
+function touchMetrics(touches){
+ const box=mapElement.getBoundingClientRect();
+ const x1=touches[0].clientX-box.left, y1=touches[0].clientY-box.top;
+ const x2=touches[1].clientX-box.left, y2=touches[1].clientY-box.top;
+ return {mid:L.point((x1+x2)/2,(y1+y2)/2),distance:Math.max(1,Math.hypot(x2-x1,y2-y1))};
+}
+function beginPinch(e){
+ if(e.touches.length<2||pinchState)return;
+ markUserGesture();
+ map.stop();
+ map.dragging.disable();
+ const m=touchMetrics(e.touches);
+ pinchState={distance:m.distance, zoom:map.getZoom(), anchor:map.containerPointToLatLng(m.mid)};
+ if(e.cancelable)e.preventDefault();
+}
+function movePinch(e){
+ if(!pinchState){if(e.touches.length>=2)beginPinch(e);return;}
+ if(e.touches.length<2)return;
+ if(e.cancelable)e.preventDefault();
+ const m=touchMetrics(e.touches);
+ const zoom=Math.max(map.getMinZoom(),Math.min(map.getMaxZoom(),pinchState.zoom+Math.log2(m.distance/pinchState.distance)));
+ // Keep the exact geographic location that started beneath the fingers
+ // beneath the live midpoint. Formula is in projected Leaflet map pixels.
+ const size=map.getSize();
+ const centerPx=map.project(pinchState.anchor,zoom).add(size.divideBy(2)).subtract(m.mid);
+ const center=map.unproject(centerPx,zoom);
+ map.setView(center,zoom,{animate:false});
+}
+function endPinch(e){
+ if(!pinchState)return;
+ if(e.touches.length>=2){
+  // Maintain continuity if one finger was replaced by another.
+  const m=touchMetrics(e.touches);
+  pinchState={distance:m.distance,zoom:map.getZoom(),anchor:map.containerPointToLatLng(m.mid)};
+  return;
+ }
+ pinchState=null;
+ map.dragging.enable();
+ // Re-run decluttering only after the gesture. The markers themselves
+ // stayed anchored to latitude/longitude throughout the gesture.
+ renderLabels();
+}
+mapElement.addEventListener('touchstart',beginPinch,{passive:false,capture:true});
+mapElement.addEventListener('touchmove',movePinch,{passive:false,capture:true});
+mapElement.addEventListener('touchend',endPinch,{passive:true,capture:true});
+mapElement.addEventListener('touchcancel',endPinch,{passive:true,capture:true});
+// Older iOS Safari also emits non-standard gesture events.
+for(const eventName of ['gesturestart','gesturechange','gestureend']){
+ mapElement.addEventListener(eventName,e=>{if(e.cancelable)e.preventDefault();},{passive:false,capture:true});
+}
 function focusRiskNow(){
   if(gestureActive)return;
   if(lastFeatures.length)zoomToRisk(lastFeatures);
